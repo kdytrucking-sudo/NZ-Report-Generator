@@ -5,10 +5,25 @@ import styles from "./dashboard.module.css";
 import { useEffect, useState } from "react";
 import { getUserData, UserData } from "@/lib/firestore-user";
 import { onAuthStateChanged } from "firebase/auth";
+import MobileDashboard from "./mobile-dashboard";
 
 export default function Dashboard() {
     const [user, setUser] = useState<any>(null);
     const [userData, setUserData] = useState<UserData | null>(null);
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
+
+        // Initial check
+        checkMobile();
+
+        // Listener
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -33,6 +48,10 @@ export default function Dashboard() {
         const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
         return date.toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit' });
     };
+
+    if (isMobile) {
+        return <MobileDashboard user={user} userData={userData} />;
+    }
 
     return (
         <div className={styles.dashboardContainer}>

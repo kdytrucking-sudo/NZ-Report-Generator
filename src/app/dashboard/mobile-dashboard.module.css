@@ -1,0 +1,230 @@
+.container {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background-color: #F3F4F6;
+    /* Light gray background */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Header */
+.header {
+    background-color: white;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #E5E7EB;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    font-size: 1.125rem;
+    color: #111827;
+}
+
+.brandIcon {
+    width: 24px;
+    height: 24px;
+    background-color: #0066CC;
+    border-radius: 4px;
+}
+
+.headerRight {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.logoutBtn {
+    background-color: #0066CC;
+    color: white;
+    border: none;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #E5E7EB;
+    overflow: hidden;
+}
+
+.avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Main Content */
+.main {
+    flex: 1;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.welcomeSection {
+    margin-bottom: 0.5rem;
+}
+
+.welcomeSection h1 {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #111827;
+    margin-bottom: 0.25rem;
+}
+
+.valuerId {
+    color: #6B7280;
+    font-size: 0.875rem;
+}
+
+/* Cards */
+.card {
+    background-color: white;
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #E5E7EB;
+}
+
+.cardTitle {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 1rem;
+}
+
+.label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #4B5563;
+    margin-bottom: 0.5rem;
+}
+
+.input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    font-size: 0.9375rem;
+    color: #111827;
+    margin-bottom: 1rem;
+    background-color: white;
+}
+
+.input::placeholder {
+    color: #9CA3AF;
+}
+
+.primaryBtn {
+    width: 100%;
+    background-color: #0066CC;
+    /* Bright Blue */
+    color: white;
+    border: none;
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.secondaryBtn {
+    width: 100%;
+    background-color: #DBEAFE;
+    /* Light Blue */
+    color: #1D4ED8;
+    /* Darker Blue text */
+    border: none;
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    cursor: pointer;
+}
+
+.selectWrapper {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.selectIcon {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #6B7280;
+}
+
+/* Stats Row */
+.statsRow {
+    display: flex;
+    justify-content: space-between;
+    padding: 1rem 0;
+}
+
+.statItem {
+    flex: 1;
+    text-align: center;
+    border-right: 1px solid #E5E7EB;
+}
+
+.statItem:last-child {
+    border-right: none;
+}
+
+.statLabel {
+    font-size: 0.75rem;
+    color: #6B7280;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+
+.statValue {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #111827;
+}
+
+/* Footer */
+.footer {
+    padding: 1.5rem;
+    text-align: center;
+    color: #6B7280;
+    font-size: 0.75rem;
+    border-top: 1px solid #E5E7EB;
+    background-color: white;
+}
+
+.footerLinks {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.footerLink {
+    color: #4B5563;
+    text-decoration: none;
+}
