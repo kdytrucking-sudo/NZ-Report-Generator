@@ -414,6 +414,12 @@
 }
 
 /* Responsive */
+@media (max-width: 768px) {
+    .header {
+        display: none;
+    }
+}
+
 @media (min-width: 768px) {
     .statsGrid {
         grid-template-columns: repeat(2, 1fr);
