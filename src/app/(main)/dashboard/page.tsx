@@ -58,7 +58,7 @@ export default function Dashboard() {
             {/* Welcome Section */}
             <div className={styles.welcomeSection}>
                 <h1>Welcome, {userData?.name?.split(" ")[0] || user?.displayName?.split(" ")[0] || "Valuer"}</h1>
-                <p>Valuer ID: {userData?.valuerId || "Loading..."}</p>
+                <p>Valuer Job Number: {userData?.valuerJobNumber || "Loading..."}</p>
             </div>
 
             {/* Stats Grid */}

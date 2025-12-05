@@ -1,0 +1,6 @@
+provider:
+  cloudRun:
+    serviceAccount: nz-report-generator-sa@${projectId}.iam.gserviceaccount.com # OPTIONAL: only if you use a specific SA
+env:
+  - variable: GEMINI_API_KEY
+    secret: Gemini_Key_For_NZReport

@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import Link from "next/link";
-import styles from "./dashboard.module.css";
+import styles from "./layout.module.css";
 
-export default function DashboardLayout({
+export default function MainLayout({
     children,
 }: {
     children: React.ReactNode;
@@ -15,6 +15,7 @@ export default function DashboardLayout({
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
+    const pathname = usePathname();
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -41,7 +42,7 @@ export default function DashboardLayout({
 
     return (
         <div className={styles.layoutContainer}>
-            {/* Dashboard Header */}
+            {/* Main Header */}
             <header className={styles.header}>
                 <div className={styles.headerContent}>
                     <div className={styles.brandSection}>
@@ -50,9 +51,9 @@ export default function DashboardLayout({
                             <span className={styles.logoText}>NZ Valuers</span>
                         </Link>
                         <nav className={styles.nav}>
-                            <Link href="/dashboard" className={`${styles.navLink} ${styles.navLinkActive}`}>Start</Link>
+                            <Link href="/dashboard" className={`${styles.navLink} ${pathname === '/dashboard' ? styles.navLinkActive : ''}`}>Start</Link>
                             <Link href="#" className={styles.navLink}>Inspection</Link>
-                            <Link href="#" className={styles.navLink}>Setting</Link>
+                            <Link href="/settings" className={`${styles.navLink} ${pathname === '/settings' ? styles.navLinkActive : ''}`}>Settings</Link>
                         </nav>
                     </div>
                     <div className={styles.userSection}>

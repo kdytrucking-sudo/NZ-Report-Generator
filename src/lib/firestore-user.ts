@@ -7,12 +7,13 @@ export interface UserData {
     email: string | null;
     name: string | null;
     photoURL: string | null;
-    valuerId: string;
+    valuerJobNumber: string;
     totalReports: number;
     inProgressReports: number;
     completedReports: number;
     lastLogin: any;
     createdAt?: any;
+    businessName?: string;
 }
 
 export const syncUserToFirestore = async (user: User) => {
@@ -34,15 +35,16 @@ export const syncUserToFirestore = async (user: User) => {
         return userSnap.data() as UserData;
     } else {
         // New user, create document
-        // Generate a random Valuer ID (e.g., VNZ-XXXXX)
-        const valuerId = `VNZ-${Math.floor(10000 + Math.random() * 90000)}`;
+        // Generate a random Valuer Job Number (e.g., VNZ-XXXXX)
+        const valuerJobNumber = `VNZ-${Math.floor(10000 + Math.random() * 90000)}`;
 
         const newUserData: UserData = {
             uid: user.uid,
             email: user.email,
             name: user.displayName || "Valuer",
             photoURL: user.photoURL,
-            valuerId: valuerId,
+            valuerJobNumber: valuerJobNumber,
+            businessName: "", // Initialize business name
             totalReports: 0,
             inProgressReports: 0,
             completedReports: 0,
@@ -64,4 +66,9 @@ export const getUserData = async (uid: string): Promise<UserData | null> => {
         return userSnap.data() as UserData;
     }
     return null;
+};
+
+export const updateUserProfile = async (uid: string, data: Partial<UserData>) => {
+    const userRef = doc(db, "users", uid);
+    await updateDoc(userRef, data);
 };
