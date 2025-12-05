@@ -36,16 +36,9 @@ export default function MobileDashboard({ user, userData }: MobileDashboardProps
             </header>
 
             <main className={styles.main}>
-                {/* Welcome Section */}
-                <div className={styles.welcomeSection}>
-                    <h1>Welcome, {userData?.name?.split(" ")[0] || user?.displayName?.split(" ")[0] || "Valuer"}</h1>
-                    <p className={styles.valuerId}>Valuer ID: {userData?.valuerId || "Loading..."}</p>
-                </div>
-
                 {/* Start New Report Card */}
                 <div className={styles.card}>
                     <h2 className={styles.cardTitle}>Start a New Report</h2>
-                    <label className={styles.label}>From Inspection</label>
                     <input
                         type="text"
                         className={styles.input}
