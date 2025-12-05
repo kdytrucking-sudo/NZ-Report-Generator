@@ -51,9 +51,10 @@ export default function MainLayout({
                             <span className={styles.logoText}>NZ Valuers</span>
                         </Link>
                         <nav className={styles.nav}>
-                            <Link href="/dashboard" className={`${styles.navLink} ${pathname === '/dashboard' ? styles.navLinkActive : ''}`}>Start</Link>
-                            <Link href="#" className={styles.navLink}>Inspection</Link>
-                            <Link href="/settings" className={`${styles.navLink} ${pathname === '/settings' ? styles.navLinkActive : ''}`}>Settings</Link>
+                            <Link href="/dashboard" className={`${styles.navLink} ${pathname === '/dashboard' ? styles.navLinkActive : ''}`}>Dashboard</Link>
+                            <Link href="#" className={styles.navLink}>Extractor</Link>
+                            <Link href="#" className={styles.navLink}>Reports</Link>
+                            <Link href="/settings" className={`${styles.navLink} ${pathname?.startsWith('/settings') ? styles.navLinkActive : ''}`}>Settings</Link>
                         </nav>
                     </div>
                     <div className={styles.userSection}>

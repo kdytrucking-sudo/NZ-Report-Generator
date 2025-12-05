@@ -143,7 +143,9 @@
 }
 
 @media (max-width: 768px) {
-    .header {
-        display: none;
+
+    /* Header adjustments for mobile if needed, but do not hide it */
+    .headerContent {
+        padding: 0.5rem;
     }
 }
