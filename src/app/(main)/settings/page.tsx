@@ -196,22 +196,26 @@ export default function SettingsPage() {
                         <span className={styles.itemLabel}>Static Information Settings</span>
                         <ArrowIcon className={styles.arrowIcon} />
                     </Link>
-                    <a href="#" className={styles.settingsItem}>
+                    <Link href="/settings/report/single-choice" className={styles.settingsItem}>
                         <span className={styles.itemLabel}>Preset Single-Choice Content Settings</span>
                         <ArrowIcon className={styles.arrowIcon} />
-                    </a>
-                    <a href="#" className={styles.settingsItem}>
+                    </Link>
+                    <Link href="/settings/report/multi-choice" className={styles.settingsItem}>
                         <span className={styles.itemLabel}>Preset Multi-Choice Content Settings</span>
                         <ArrowIcon className={styles.arrowIcon} />
-                    </a>
-                    <a href="#" className={styles.settingsItem}>
+                    </Link>
+                    <Link href="/settings/report/structure" className={styles.settingsItem}>
+                        <span className={styles.itemLabel}>Report Structure Settings</span>
+                        <ArrowIcon className={styles.arrowIcon} />
+                    </Link>
+                    <Link href="/settings/report/image-config" className={styles.settingsItem}>
                         <span className={styles.itemLabel}>Image Placeholder Settings</span>
                         <ArrowIcon className={styles.arrowIcon} />
-                    </a>
-                    <a href="#" className={styles.settingsItem}>
+                    </Link>
+                    <Link href="/settings/report/templates" className={styles.settingsItem}>
                         <span className={styles.itemLabel}>Template Settings</span>
                         <ArrowIcon className={styles.arrowIcon} />
-                    </a>
+                    </Link>
                 </div>
             </section>
         </div>

@@ -2,15 +2,32 @@
 
 import { auth } from "@/lib/firebase";
 import styles from "./dashboard.module.css";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getUserData, UserData } from "@/lib/firestore-user";
+import { getUserReports, createSampleReport, createReportFromStructure, updateReport, deleteReport, Report } from "@/lib/firestore-reports";
+import { uploadReportFile } from "@/lib/storage-reports";
 import { onAuthStateChanged } from "firebase/auth";
 import MobileDashboard from "./mobile-dashboard";
+import { useRouter } from "next/navigation"; // Correct import for App Router
 
 export default function Dashboard() {
+    const router = useRouter();
     const [user, setUser] = useState<any>(null);
     const [userData, setUserData] = useState<UserData | null>(null);
+    const [reports, setReports] = useState<Report[]>([]);
     const [isMobile, setIsMobile] = useState(false);
+    const [loadingReports, setLoadingReports] = useState(true);
+
+    // New Report State
+    const [newAddress, setNewAddress] = useState("");
+    const [briefFile, setBriefFile] = useState<File | null>(null);
+    const [titleFile, setTitleFile] = useState<File | null>(null);
+    const [creating, setCreating] = useState(false);
+
+    const [selectedReportId, setSelectedReportId] = useState("");
+
+    const briefInputRef = useRef<HTMLInputElement>(null);
+    const titleInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const checkMobile = () => {
@@ -31,10 +48,105 @@ export default function Dashboard() {
                 setUser(currentUser);
                 const data = await getUserData(currentUser.uid);
                 setUserData(data);
+
+                // Fetch Reports
+                getUserReports(currentUser.uid).then(fetchedReports => {
+                    setReports(fetchedReports);
+                    setLoadingReports(false);
+                    if (fetchedReports.length > 0) {
+                        setSelectedReportId(fetchedReports[0].id);
+                    }
+                });
             }
         });
         return () => unsubscribe();
     }, []);
+
+    const handleCreateSample = async () => {
+        if (!user) return;
+        try {
+            await createSampleReport(user.uid);
+            // Refresh list
+            const updatedReports = await getUserReports(user.uid);
+            setReports(updatedReports);
+            alert("Sample report created!");
+        } catch (error) {
+            console.error(error);
+            alert("Failed to create sample report.");
+        }
+    };
+
+    const handleStartNewReport = async () => {
+        if (!user) return;
+        if (!newAddress.trim()) {
+            alert("Please enter a Property Address.");
+            return;
+        }
+        if (!briefFile || !titleFile) {
+            alert("Please upload both Brief Doc and Property Title.");
+            return;
+        }
+
+        setCreating(true);
+        try {
+            // 1. Create initial report from structure
+            const newReport = await createReportFromStructure(user.uid, newAddress, {});
+
+            // 2. Upload files
+            const uploadedBrief = await uploadReportFile(user.uid, newReport.id, briefFile, "brief");
+            const uploadedTitle = await uploadReportFile(user.uid, newReport.id, titleFile, "title");
+
+            // 3. Update report with files
+            await updateReport(user.uid, newReport.id, {
+                files: {
+                    brief: uploadedBrief,
+                    title: uploadedTitle
+                }
+            });
+
+            // 4. Redirect
+            router.push(`/report/meta?id=${newReport.id}`);
+        } catch (error) {
+            console.error(error);
+            alert("Failed to start new report. See console.");
+            setCreating(false);
+        }
+    };
+
+    const onFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: "brief" | "title") => {
+        if (e.target.files && e.target.files[0]) {
+            if (type === "brief") setBriefFile(e.target.files[0]);
+            else setTitleFile(e.target.files[0]);
+        }
+    };
+
+    const handleLoadDraft = () => {
+        if (!selectedReportId) return;
+        router.push(`/report/meta?id=${selectedReportId}`);
+    };
+
+    const handleDeleteDraft = async () => {
+        if (!user || !selectedReportId) return;
+        if (!confirm("Are you sure you want to delete this report? This cannot be undone.")) return;
+
+        try {
+            await deleteReport(user.uid, selectedReportId);
+
+            // Refresh list
+            const updatedReports = reports.filter(r => r.id !== selectedReportId);
+            setReports(updatedReports);
+
+            if (updatedReports.length > 0) {
+                setSelectedReportId(updatedReports[0].id);
+            } else {
+                setSelectedReportId("");
+            }
+            alert("Report deleted.");
+        } catch (error) {
+            console.error("Error deleting report:", error);
+            alert("Failed to delete report.");
+        }
+    };
 
     const formatDate = (timestamp: any) => {
         if (!timestamp) return "N/A";
@@ -57,8 +169,10 @@ export default function Dashboard() {
         <div className={styles.dashboardContainer}>
             {/* Welcome Section */}
             <div className={styles.welcomeSection}>
-                <h1>Welcome, {userData?.name?.split(" ")[0] || user?.displayName?.split(" ")[0] || "Valuer"}</h1>
-                <p>Valuer Job Number: {userData?.valuerJobNumber || "Loading..."}</p>
+                <h1>
+                    Welcome, {userData?.name?.split(" ")[0] || user?.displayName?.split(" ")[0] || "Valuer"}
+                    <span className={styles.jobNumberText}>(Job number: {userData?.valuerJobNumber || "..."})</span>
+                </h1>
             </div>
 
             {/* Stats Grid */}
@@ -74,84 +188,155 @@ export default function Dashboard() {
                 </div>
                 <div className={styles.statCard}>
                     <p className={styles.statLabel}>Total Reports</p>
-                    <p className={styles.statValue}>{userData?.totalReports ?? 0}</p>
+                    <p className={styles.statValue}>{reports.length}</p>
                 </div>
                 <div className={styles.statCard}>
                     <p className={styles.statLabel}>In-Progress</p>
-                    <p className={styles.statValue}>{userData?.inProgressReports ?? 0}</p>
+                    <p className={styles.statValue}>{reports.filter(r => r.metadata?.status === 'in_progress').length}</p>
                 </div>
                 <div className={styles.statCard}>
                     <p className={styles.statLabel}>Completed</p>
-                    <p className={styles.statValue}>{userData?.completedReports ?? 0}</p>
+                    <p className={styles.statValue}>{reports.filter(r => r.metadata?.status === 'completed').length}</p>
                 </div>
             </div>
 
             <div className={styles.actionGrid}>
-                {/* Start New Report */}
+                {/* 1. Upload Files */}
                 <div className={styles.actionCard}>
-                    <h2 className={styles.cardTitle}>Start a New Report</h2>
-
-                    <div className={styles.toggleGroup}>
-                        <button className={`${styles.toggleBtn} ${styles.toggleBtnActive}`}>From PC</button>
-                        <button className={styles.toggleBtn}>From Inspection</button>
-                    </div>
-
+                    <h2 className={styles.cardTitle}>Upload Files</h2>
                     <div className={styles.inputGroup}>
-                        <div className={styles.field}>
-                            <label className={styles.fieldLabel}>Property Address</label>
-                            <input type="text" className="input" placeholder="e.g., 123 Queen Street, Auckland" style={{ maxWidth: '100%' }} />
-                        </div>
-
                         <div className={styles.field}>
                             <label className={styles.fieldLabel}>Brief Doc</label>
                             <div className={styles.fileInputWrapper}>
-                                <input type="text" className={`input ${styles.fileInput}`} placeholder="Upload a file (.pdf, .doc)" readOnly />
-                                <button className={styles.fileBtn}>
-                                    Choose File
-                                </button>
+                                <input
+                                    type="text"
+                                    className={`input ${styles.fileInput}`}
+                                    value={briefFile ? briefFile.name : ""}
+                                    placeholder="Upload (.pdf, .doc)"
+                                    readOnly
+                                    onClick={() => briefInputRef.current?.click()}
+                                />
+                                <button className={styles.fileBtn} onClick={() => briefInputRef.current?.click()}>Choose</button>
+                                <input
+                                    type="file"
+                                    ref={briefInputRef}
+                                    hidden
+                                    onChange={(e) => onFileChange(e, "brief")}
+                                    accept=".pdf,.doc,.docx"
+                                />
                             </div>
                         </div>
 
                         <div className={styles.field}>
                             <label className={styles.fieldLabel}>Property Title</label>
                             <div className={styles.fileInputWrapper}>
-                                <input type="text" className={`input ${styles.fileInput}`} placeholder="Upload a file (.pdf, .doc)" readOnly />
-                                <button className={styles.fileBtn}>
-                                    Choose File
-                                </button>
+                                <input
+                                    type="text"
+                                    className={`input ${styles.fileInput}`}
+                                    value={titleFile ? titleFile.name : ""}
+                                    placeholder="Upload (.pdf, .doc)"
+                                    readOnly
+                                    onClick={() => titleInputRef.current?.click()}
+                                />
+                                <button className={styles.fileBtn} onClick={() => titleInputRef.current?.click()}>Choose</button>
+                                <input
+                                    type="file"
+                                    ref={titleInputRef}
+                                    hidden
+                                    onChange={(e) => onFileChange(e, "title")}
+                                    accept=".pdf,.doc,.docx"
+                                />
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        <button className={`btn btn-primary ${styles.generateBtn}`}>
-                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                            Generate Report
+                {/* 2. Start New Report */}
+                <div className={styles.actionCard}>
+                    <h2 className={styles.cardTitle}>Start New Report</h2>
+                    <div className={styles.inputGroup}>
+                        <div className={styles.field}>
+                            <label className={styles.fieldLabel}>Property Address</label>
+                            <input
+                                type="text"
+                                className="input"
+                                placeholder="e.g., 123 Queen Street, Auckland"
+                                style={{ maxWidth: '100%' }}
+                                value={newAddress}
+                                onChange={(e) => setNewAddress(e.target.value)}
+                            />
+                        </div>
+
+                        <div style={{ flexGrow: 1 }}></div>
+
+                        <button
+                            className={`btn btn-primary ${styles.generateBtn}`}
+                            onClick={handleStartNewReport}
+                            disabled={creating}
+                        >
+                            {creating ? "Creating..." : (
+                                <>
+                                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                                    New Report
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>
 
-                {/* Continue Draft */}
+                {/* 3. Continue Draft */}
                 <div className={styles.actionCard}>
-                    <h2 className={styles.cardTitle}>Continue a Draft</h2>
-
-                    <div className={styles.selectWrapper}>
-                        <select className="input" style={{ appearance: 'none' }}>
-                            <option>REP-2023-08-012: 55 Main St...</option>
-                            <option>REP-2023-08-011: 12 Beach Rd...</option>
-                        </select>
-                        <div className={styles.selectIcon}>
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                        </div>
-                    </div>
-
+                    <h2 className={styles.cardTitle}>Continue Draft</h2>
                     <div className={styles.inputGroup}>
-                        <button className={`btn ${styles.actionBtn}`}>
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                            Load into PC
-                        </button>
-                        <button className={`btn ${styles.actionBtn}`}>
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                            Load into Inspection
-                        </button>
+                        <div className={styles.selectWrapper}>
+                            <select
+                                className="input"
+                                style={{ appearance: 'none', width: '100%' }}
+                                value={selectedReportId}
+                                onChange={(e) => setSelectedReportId(e.target.value)}
+                            >
+                                {reports.length > 0 ? (
+                                    reports.map(r => (
+                                        <option key={r.id} value={r.id}>
+                                            {r.metadata?.fields?.['jobNumber']?.value || "Draft"}: {(r.metadata?.fields?.['address']?.value || "Untitled").substring(0, 20)}...
+                                        </option>
+                                    ))
+                                ) : (
+                                    <option value="">No drafts available</option>
+                                )}
+                            </select>
+                            <div className={styles.selectIcon}>
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                            </div>
+                        </div>
+
+                        <div style={{ flexGrow: 1 }}></div>
+
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                                className={`btn ${styles.actionBtn}`}
+                                onClick={handleLoadDraft}
+                                disabled={!selectedReportId}
+                                style={{ flex: 1 }}
+                            >
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                                Load
+                            </button>
+                            <button
+                                className="btn"
+                                onClick={handleDeleteDraft}
+                                disabled={!selectedReportId}
+                                style={{
+                                    backgroundColor: '#fee2e2',
+                                    color: '#b91c1c',
+                                    border: '1px solid #fecaca',
+                                    padding: '0.5rem 1rem'
+                                }}
+                                title="Delete Report"
+                            >
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -159,38 +344,53 @@ export default function Dashboard() {
             {/* Completed Reports Table */}
             <div className={styles.tableCard}>
                 <div className={styles.tableHeader}>
-                    <h2 className={styles.cardTitle}>Completed Reports</h2>
+                    <h2 className={styles.cardTitle}>Recent Reports</h2>
                 </div>
                 <div className={styles.tableWrapper}>
                     <table className={styles.table}>
                         <thead>
                             <tr>
                                 <th>Property Address</th>
-                                <th>Completion Date</th>
+                                <th>Status</th>
+                                <th>Created</th>
                                 <th style={{ textAlign: 'right' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {[
-                                { address: "246 Lambton Quay, Wellington Central", date: "10 Aug 2023" },
-                                { address: "188 Quay Street, Auckland CBD", date: "05 Aug 2023" },
-                                { address: "7 Rolleston Avenue, Christchurch Central City", date: "28 Jul 2023" },
-                            ].map((report, i) => (
-                                <tr key={i}>
-                                    <td className={styles.primaryText}>{report.address}</td>
-                                    <td>{report.date}</td>
-                                    <td>
-                                        <div className={styles.actionsCell}>
-                                            <button className={styles.iconBtn}>
-                                                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                                            </button>
-                                            <button className={styles.iconBtn}>
-                                                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                            {loadingReports ? (
+                                <tr><td colSpan={4} className="p-4 text-center">Loading reports...</td></tr>
+                            ) : reports.length === 0 ? (
+                                <tr><td colSpan={4} className="p-4 text-center">No reports found</td></tr>
+                            ) : (
+                                reports.map((report) => (
+                                    <tr key={report.id}>
+                                        <td className={styles.primaryText}>{report.metadata?.fields?.['address']?.value || "N/A"}</td>
+                                        <td>
+                                            <span style={{
+                                                textTransform: 'capitalize',
+                                                padding: '2px 8px',
+                                                borderRadius: '12px',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: report.metadata?.status === 'completed' ? '#d1fae5' : '#fef3c7',
+                                                color: report.metadata?.status === 'completed' ? '#065f46' : '#92400e'
+                                            }}>
+                                                {(report.metadata?.status || 'draft').replace('_', ' ')}
+                                            </span>
+                                        </td>
+                                        <td>{formatDate(report.metadata?.createdAt)}</td>
+                                        <td>
+                                            <div className={styles.actionsCell}>
+                                                <button className={styles.iconBtn} title="View Details">
+                                                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                                </button>
+                                                <button className={styles.iconBtn} title="Edit">
+                                                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>

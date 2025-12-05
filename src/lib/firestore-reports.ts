@@ -1,0 +1,155 @@
+import { db } from "./firebase";
+import { collection, doc, setDoc, getDocs, getDoc, deleteDoc, Timestamp, query, orderBy, UpdateData } from "firebase/firestore";
+import { getStructure, StructureField, ContentSection } from "./firestore-report-structure";
+
+// --- Types ---
+
+// Re-using StructureField but assuming 'value' is populated in Report instances
+export interface ReportField extends StructureField {
+    value: any;
+}
+
+export interface ReportContentSection {
+    id: string;
+    title: string;
+    fields: { [key: string]: ReportField }; // Keyed by field ID
+}
+
+export interface ReportFile {
+    name: string;
+    path: string;
+    url: string;
+    type: "brief" | "title";
+    uploadedAt: number;
+}
+
+export interface Report {
+    id: string;
+    // We use a flexible dictionary for meta/basic because the keys are dynamic based on structure
+    metadata: {
+        [key: string]: any; // System fields (uid, status, etc)
+        fields: { [key: string]: ReportField }; // Dynamic fields
+    };
+    baseInfo: {
+        fields: { [key: string]: ReportField };
+    };
+    content: {
+        [sectionId: string]: ReportContentSection
+    };
+    files: {
+        brief?: ReportFile;
+        title?: ReportFile;
+    };
+}
+
+// --- Helpers ---
+
+const mapStructureToReportFields = (structureFields: StructureField[]): { [key: string]: ReportField } => {
+    const fields: { [key: string]: ReportField } = {};
+    structureFields.forEach(sf => {
+        fields[sf.id] = {
+            ...sf,
+            value: sf.defaultValue !== undefined ? sf.defaultValue : ""
+        };
+    });
+    return fields;
+};
+
+const mapContentSectionsToReport = (sections: ContentSection[]): { [sectionId: string]: ReportContentSection } => {
+    const reportSections: { [sectionId: string]: ReportContentSection } = {};
+    sections.forEach(sec => {
+        reportSections[sec.id] = {
+            id: sec.id,
+            title: sec.title,
+            fields: mapStructureToReportFields(sec.fields)
+        };
+    });
+    return reportSections;
+};
+
+const generateReportId = (address: string) => {
+    const sanitizedAddress = (address || "untitled").replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
+    const timestamp = Date.now();
+    return `${sanitizedAddress}-${timestamp}`;
+};
+
+// --- Firestore Functions ---
+
+const COLLECTION_NAME = "reports";
+
+export const createReportFromStructure = async (
+    uid: string,
+    address: string,
+    files: { brief?: ReportFile, title?: ReportFile }
+): Promise<Report> => {
+    // 1. Get User's Structure (or defaults)
+    const structure = await getStructure(uid);
+    if (!structure) throw new Error("Could not load report structure");
+
+    // 2. Generate ID
+    const reportId = generateReportId(address);
+    const createdAt = Timestamp.now();
+
+    // 3. Map Structure to Instance
+    const metadataFields = mapStructureToReportFields(structure.meta);
+    const basicInfoFields = mapStructureToReportFields(structure.basicInfo);
+    const contentSections = mapContentSectionsToReport(structure.content);
+
+    // 4. Inject Initial Values (Address if it exists in fields)
+    if (metadataFields['address']) {
+        metadataFields['address'].value = address;
+    }
+    if (basicInfoFields['singleLineAddress']) {
+        basicInfoFields['singleLineAddress'].value = address;
+    }
+
+    // 5. Construct Report Object
+    const newReport: Report = {
+        id: reportId,
+        metadata: {
+            uid,
+            createdAt,
+            status: "draft",
+            fields: metadataFields
+        },
+        baseInfo: {
+            fields: basicInfoFields
+        },
+        content: contentSections,
+        files: files
+    };
+
+    // 6. Save to Firestore
+    const docRef = doc(db, "users", uid, COLLECTION_NAME, reportId);
+    await setDoc(docRef, newReport);
+
+    return newReport;
+};
+
+export const getReport = async (uid: string, reportId: string): Promise<Report | null> => {
+    const docRef = doc(db, "users", uid, COLLECTION_NAME, reportId);
+    const snap = await getDoc(docRef);
+    return snap.exists() ? (snap.data() as Report) : null;
+};
+
+export const updateReport = async (uid: string, reportId: string, data: Partial<Report> | any) => {
+    const docRef = doc(db, "users", uid, COLLECTION_NAME, reportId);
+    await setDoc(docRef, data, { merge: true });
+};
+
+export const getUserReports = async (uid: string) => {
+    const colRef = collection(db, "users", uid, COLLECTION_NAME);
+    const q = query(colRef, orderBy("metadata.createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => d.data() as Report);
+};
+
+// Sample creation using the new logic
+export const createSampleReport = async (uid: string) => {
+    return createReportFromStructure(uid, "123 Queen Street, Sample", {});
+};
+
+export const deleteReport = async (uid: string, reportId: string) => {
+    const docRef = doc(db, "users", uid, COLLECTION_NAME, reportId);
+    await deleteDoc(docRef);
+};

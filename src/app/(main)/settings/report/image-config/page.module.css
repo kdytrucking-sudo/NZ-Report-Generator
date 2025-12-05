@@ -1,0 +1,183 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    animation: fadeIn 0.5s ease-out;
+    padding-bottom: 4rem;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1.5rem;
+}
+
+.title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--foreground);
+    margin: 0 0 0.5rem 0;
+}
+
+.description {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+.addBtn {
+    background-color: #6366f1;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+}
+
+.addBtn:hover {
+    background-color: #4f46e5;
+}
+
+/* Grid Layout */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1rem;
+}
+
+.card {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    transition: all var(--transition-fast);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: #cbd5e1;
+}
+
+/* Row Styles - Using Flex to enforce single line */
+.rowOne,
+.rowTwo,
+.rowThree {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+/* Labels */
+.nameLabel,
+.holderLabel,
+.dimLabel {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    width: 45px;
+    /* Fixed width for alignment */
+    flex-shrink: 0;
+}
+
+.dimLabel {
+    width: auto;
+    /* Allow W/H to be smaller */
+    margin-left: 0.5rem;
+}
+
+.dimLabel:first-child {
+    margin-left: 0;
+}
+
+/* Inputs */
+.input {
+    padding: 0.35rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    background-color: var(--background);
+    color: var(--foreground);
+    height: 32px;
+    /* Fixed height for consistency */
+}
+
+/* Row 1 Specifics */
+.rowOne .input {
+    flex: 1;
+    /* Take remaining space */
+    min-width: 0;
+}
+
+/* Row 2 Specifics */
+.rowTwo .input {
+    flex: 1;
+    /* Take remaining space */
+    font-family: monospace;
+    font-size: 0.75rem;
+    min-width: 0;
+}
+
+/* Row 3 Specifics */
+.rowThree .input {
+    width: 60px;
+    /* Short fixed width for numbers */
+    text-align: center;
+}
+
+/* Icons */
+.iconBtn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    transition: background-color var(--transition-fast);
+}
+
+.saveIconBtn {
+    color: #10b981;
+}
+
+.saveIconBtn:hover {
+    background-color: #d1fae5;
+}
+
+.deleteIconBtn {
+    color: #ef4444;
+}
+
+.deleteIconBtn:hover {
+    background-color: #fee2e2;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
