@@ -192,10 +192,10 @@ export default function SettingsPage() {
                     </p>
                 </div>
                 <div className={styles.settingsList}>
-                    <a href="#" className={styles.settingsItem}>
+                    <Link href="/settings/report/static-info" className={styles.settingsItem}>
                         <span className={styles.itemLabel}>Static Information Settings</span>
                         <ArrowIcon className={styles.arrowIcon} />
-                    </a>
+                    </Link>
                     <a href="#" className={styles.settingsItem}>
                         <span className={styles.itemLabel}>Preset Single-Choice Content Settings</span>
                         <ArrowIcon className={styles.arrowIcon} />
