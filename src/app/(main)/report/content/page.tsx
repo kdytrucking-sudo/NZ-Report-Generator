@@ -114,8 +114,36 @@ export default function ReportContentPage() {
             case "date":
                 return <input {...commonProps} type="date" />;
             case "checkbox":
+                if (field.options && field.options.length > 0) {
+                    const currentValues: string[] = Array.isArray(field.value) ? field.value : [];
+                    return (
+                        <div className={styles.checkboxGroup}>
+                            {field.options.map(opt => (
+                                <div key={opt} className={styles.checkboxWrapper}>
+                                    <input
+                                        type="checkbox"
+                                        id={`${sectionId}-${key}-${opt}`}
+                                        className={styles.checkbox}
+                                        checked={currentValues.includes(opt)}
+                                        onChange={(e) => {
+                                            const checked = e.target.checked;
+                                            let newValues = [...currentValues];
+                                            if (checked) {
+                                                newValues.push(opt);
+                                            } else {
+                                                newValues = newValues.filter(v => v !== opt);
+                                            }
+                                            handleInputChange(sectionId, key, newValues);
+                                        }}
+                                    />
+                                    <label htmlFor={`${sectionId}-${key}-${opt}`} className={styles.label} style={{ fontWeight: 'normal' }}>{opt}</label>
+                                </div>
+                            ))}
+                        </div>
+                    );
+                }
                 return (
-                    <div className={styles.checkboxWrapper}>
+                    <div className={styles.checkboxWrapper} style={{ border: 'none', padding: 0 }}>
                         <input
                             type="checkbox"
                             id={`${sectionId}-${key}`}
@@ -123,11 +151,10 @@ export default function ReportContentPage() {
                             checked={!!field.value}
                             onChange={(e) => handleInputChange(sectionId, key, e.target.checked)}
                         />
-                        <label htmlFor={`${sectionId}-${key}`} className={styles.label}>{field.label}</label>
                     </div>
                 );
             case "select":
-                const options = field.placeholder ? field.placeholder.split(',').map(s => s.trim()) : [];
+                const options = field.options || (field.placeholder ? field.placeholder.split(',').map(s => s.trim()) : []);
                 return (
                     <select {...commonProps} className={styles.select}>
                         <option value="" disabled>Select an option</option>
@@ -171,20 +198,13 @@ export default function ReportContentPage() {
                 {activeSection ? (
                     <div className={styles.fieldGroup}>
                         <h2 className="text-xl font-bold mb-4">{activeSection.title}</h2>
-                        {Object.keys(activeSection.fields).map(key => {
+                        {(activeSection.fieldOrder || Object.keys(activeSection.fields)).map(key => {
                             const field = activeSection.fields[key];
-                            if (field.displayType === "checkbox") {
-                                return (
-                                    <div key={key}>
-                                        {renderInput(activeSectionId, key, field)}
-                                    </div>
-                                );
-                            }
+                            if (!field) return null;
+
+                            // Always use standard field wrapper
                             return (
                                 <div key={key} className={styles.field}>
-                                    <label htmlFor={`${activeSectionId}-${key}`} className={styles.label}>
-                                        {field.label} {field.ifValidation && <span className="text-red-500">*</span>}
-                                    </label>
                                     {renderInput(activeSectionId, key, field)}
                                 </div>
                             );

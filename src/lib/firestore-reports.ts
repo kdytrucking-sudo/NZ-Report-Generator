@@ -13,6 +13,7 @@ export interface ReportContentSection {
     id: string;
     title: string;
     fields: { [key: string]: ReportField }; // Keyed by field ID
+    fieldOrder?: string[];
 }
 
 export interface ReportFile {
@@ -29,13 +30,16 @@ export interface Report {
     metadata: {
         [key: string]: any; // System fields (uid, status, etc)
         fields: { [key: string]: ReportField }; // Dynamic fields
+        fieldOrder?: string[];
     };
     baseInfo: {
         fields: { [key: string]: ReportField };
+        fieldOrder?: string[];
     };
     content: {
         [sectionId: string]: ReportContentSection
     };
+    contentOrder?: string[];
     files: {
         brief?: ReportFile;
         title?: ReportFile;
@@ -61,7 +65,8 @@ const mapContentSectionsToReport = (sections: ContentSection[]): { [sectionId: s
         reportSections[sec.id] = {
             id: sec.id,
             title: sec.title,
-            fields: mapStructureToReportFields(sec.fields)
+            fields: mapStructureToReportFields(sec.fields),
+            fieldOrder: sec.fields.map(f => f.id)
         };
     });
     return reportSections;
@@ -95,6 +100,10 @@ export const createReportFromStructure = async (
     const basicInfoFields = mapStructureToReportFields(structure.basicInfo);
     const contentSections = mapContentSectionsToReport(structure.content);
 
+    const metadataOrder = structure.meta.map(f => f.id);
+    const basicInfoOrder = structure.basicInfo.map(f => f.id);
+    const contentOrder = structure.content.map(s => s.id);
+
     // 4. Inject Initial Values (Address if it exists in fields)
     if (metadataFields['address']) {
         metadataFields['address'].value = address;
@@ -110,12 +119,15 @@ export const createReportFromStructure = async (
             uid,
             createdAt,
             status: "draft",
-            fields: metadataFields
+            fields: metadataFields,
+            fieldOrder: metadataOrder
         },
         baseInfo: {
-            fields: basicInfoFields
+            fields: basicInfoFields,
+            fieldOrder: basicInfoOrder
         },
         content: contentSections,
+        contentOrder: contentOrder,
         files: files
     };
 

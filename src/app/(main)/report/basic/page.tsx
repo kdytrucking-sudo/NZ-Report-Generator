@@ -90,8 +90,36 @@ export default function ReportBasicPage() {
             case "date":
                 return <input {...commonProps} type="date" />;
             case "checkbox":
+                if (field.options && field.options.length > 0) {
+                    const currentValues: string[] = Array.isArray(field.value) ? field.value : [];
+                    return (
+                        <div className={styles.checkboxGroup}>
+                            {field.options.map(opt => (
+                                <div key={opt} className={styles.checkboxWrapper}>
+                                    <input
+                                        type="checkbox"
+                                        id={`${key}-${opt}`}
+                                        className={styles.checkbox}
+                                        checked={currentValues.includes(opt)}
+                                        onChange={(e) => {
+                                            const checked = e.target.checked;
+                                            let newValues = [...currentValues];
+                                            if (checked) {
+                                                newValues.push(opt);
+                                            } else {
+                                                newValues = newValues.filter(v => v !== opt);
+                                            }
+                                            handleInputChange(key, newValues);
+                                        }}
+                                    />
+                                    <label htmlFor={`${key}-${opt}`} className={styles.label} style={{ fontWeight: 'normal' }}>{opt}</label>
+                                </div>
+                            ))}
+                        </div>
+                    );
+                }
                 return (
-                    <div className={styles.checkboxWrapper}>
+                    <div className={styles.checkboxWrapper} style={{ border: 'none', padding: 0 }}>
                         <input
                             type="checkbox"
                             id={key}
@@ -99,12 +127,11 @@ export default function ReportBasicPage() {
                             checked={!!field.value}
                             onChange={(e) => handleInputChange(key, e.target.checked)}
                         />
-                        <label htmlFor={key} className={styles.label}>{field.label}</label>
                     </div>
                 );
             case "select":
-                // Parse options from placeholder (comma separated)
-                const options = field.placeholder ? field.placeholder.split(',').map(s => s.trim()) : [];
+                // Parse options from field.options or fallback to placeholder
+                const options = field.options || (field.placeholder ? field.placeholder.split(',').map(s => s.trim()) : []);
                 return (
                     <select {...commonProps} className={styles.select}>
                         <option value="" disabled>Select an option</option>
@@ -121,39 +148,45 @@ export default function ReportBasicPage() {
     if (loading) return <div className="p-8 text-center">Loading...</div>;
     if (!report) return <div className="p-8 text-center">Report not found.</div>;
 
-    const fieldKeys = Object.keys(report.baseInfo.fields);
+    const fieldKeys = report.baseInfo.fieldOrder || Object.keys(report.baseInfo.fields);
+
+    // Split into Left/Right columns
+    const midIndex = Math.ceil(fieldKeys.length / 2);
+    const leftKeys = fieldKeys.slice(0, midIndex);
+    const rightKeys = fieldKeys.slice(midIndex);
+
+    const renderColumnFields = (keys: string[], className?: string) => (
+        <div className={`${styles.fieldGroup} ${className || ''}`}>
+            {keys.map(key => {
+                const field = report.baseInfo.fields[key];
+                if (!field) return null;
+
+                return (
+                    <div key={key} className={styles.field}>
+                        <label htmlFor={key} className={styles.label}>
+                            {field.label} {field.ifValidation && <span className="text-red-500">*</span>}
+                        </label>
+                        {renderInput(key, field)}
+                    </div>
+                );
+            })}
+        </div>
+    );
 
     return (
         <div className={styles.container}>
             <div className={styles.header}>
                 <h1 className={styles.title}>Basic Information</h1>
-                <p className={styles.subtitle}>Enter the core details of the property and report.</p>
+                <p className={styles.subtitle}>Enter the core details of the property.</p>
             </div>
 
             <div className={styles.formCard}>
-                <div className={styles.fieldGroup}>
-                    {fieldKeys.map(key => {
-                        const field = report.baseInfo.fields[key];
-                        if (field.displayType === "checkbox") {
-                            return (
-                                <div key={key}>
-                                    {renderInput(key, field)}
-                                </div>
-                            );
-                        }
-                        return (
-                            <div key={key} className={styles.field}>
-                                <label htmlFor={key} className={styles.label}>
-                                    {field.label} {field.ifValidation && <span className="text-red-500">*</span>}
-                                </label>
-                                {renderInput(key, field)}
-                            </div>
-                        );
-                    })}
+                <div className={styles.columnsContainer}>
+                    {renderColumnFields(leftKeys, styles.leftColumn)}
+                    {renderColumnFields(rightKeys, styles.rightColumn)}
                 </div>
 
                 <div className={styles.footer}>
-                    {/* Navigate back to Meta */}
                     <Link href={`/report/meta?id=${reportId}`} className={styles.backBtn}>
                         Previous
                     </Link>

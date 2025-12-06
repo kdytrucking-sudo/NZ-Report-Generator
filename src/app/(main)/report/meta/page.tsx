@@ -90,8 +90,38 @@ export default function ReportMetaPage() {
             case "date":
                 return <input {...commonProps} type="date" />;
             case "checkbox":
+                // If options provided -> Multi-select Checkbox Group
+                if (field.options && field.options.length > 0) {
+                    const currentValues: string[] = Array.isArray(field.value) ? field.value : [];
+                    return (
+                        <div className={styles.checkboxGroup}>
+                            {field.options.map(opt => (
+                                <div key={opt} className={styles.checkboxWrapper}>
+                                    <input
+                                        type="checkbox"
+                                        id={`${key}-${opt}`}
+                                        className={styles.checkbox}
+                                        checked={currentValues.includes(opt)}
+                                        onChange={(e) => {
+                                            const checked = e.target.checked;
+                                            let newValues = [...currentValues];
+                                            if (checked) {
+                                                newValues.push(opt);
+                                            } else {
+                                                newValues = newValues.filter(v => v !== opt);
+                                            }
+                                            handleInputChange(key, newValues);
+                                        }}
+                                    />
+                                    <label htmlFor={`${key}-${opt}`} className={styles.label} style={{ fontWeight: 'normal' }}>{opt}</label>
+                                </div>
+                            ))}
+                        </div>
+                    );
+                }
+                // Default -> Single Boolean Checkbox
                 return (
-                    <div className={styles.checkboxWrapper}>
+                    <div className={styles.checkboxWrapper} style={{ border: 'none', padding: 0 }}>
                         <input
                             type="checkbox"
                             id={key}
@@ -99,11 +129,10 @@ export default function ReportMetaPage() {
                             checked={!!field.value}
                             onChange={(e) => handleInputChange(key, e.target.checked)}
                         />
-                        <label htmlFor={key} className={styles.label}>{field.label}</label>
                     </div>
                 );
             case "select":
-                const options = field.placeholder ? field.placeholder.split(',').map(s => s.trim()) : [];
+                const options = field.options || (field.placeholder ? field.placeholder.split(',').map(s => s.trim()) : []);
                 return (
                     <select {...commonProps} className={styles.select}>
                         <option value="" disabled>Select an option</option>
@@ -120,10 +149,31 @@ export default function ReportMetaPage() {
     if (loading) return <div className="p-8 text-center">Loading...</div>;
     if (!report) return <div className="p-8 text-center">Report not found.</div>;
 
-    // Convert fields object to array for mapping
-    // We can sort them if needed, or rely on object key order (less reliable).
-    // Better: Sort by a predefined order or just map keys.
-    const fieldKeys = Object.keys(report.metadata.fields);
+    // Use fieldOrder if available, otherwise fallback to object keys (random/insertion order)
+    const fieldKeys = report.metadata.fieldOrder || Object.keys(report.metadata.fields);
+
+    // Split into two columns for display (Left half, Right half)
+    const midIndex = Math.ceil(fieldKeys.length / 2);
+    const leftKeys = fieldKeys.slice(0, midIndex);
+    const rightKeys = fieldKeys.slice(midIndex);
+
+    const renderColumnFields = (keys: string[], className?: string) => (
+        <div className={`${styles.fieldGroup} ${className || ''}`}>
+            {keys.map(key => {
+                const field = report.metadata.fields[key];
+                if (!field) return null;
+
+                return (
+                    <div key={key} className={styles.field}>
+                        <label htmlFor={key} className={styles.label}>
+                            {field.label} {field.ifValidation && <span className="text-red-500">*</span>}
+                        </label>
+                        {renderInput(key, field)}
+                    </div>
+                );
+            })}
+        </div>
+    );
 
     return (
         <div className={styles.container}>
@@ -133,27 +183,9 @@ export default function ReportMetaPage() {
             </div>
 
             <div className={styles.formCard}>
-                <div className={styles.fieldGroup}>
-                    {fieldKeys.map(key => {
-                        const field = report.metadata.fields[key];
-                        // Special handling for checkbox layout
-                        if (field.displayType === "checkbox") {
-                            return (
-                                <div key={key}>
-                                    {renderInput(key, field)}
-                                </div>
-                            );
-                        }
-
-                        return (
-                            <div key={key} className={styles.field}>
-                                <label htmlFor={key} className={styles.label}>
-                                    {field.label} {field.ifValidation && <span className="text-red-500">*</span>}
-                                </label>
-                                {renderInput(key, field)}
-                            </div>
-                        );
-                    })}
+                <div className={styles.columnsContainer}>
+                    {renderColumnFields(leftKeys, styles.leftColumn)}
+                    {renderColumnFields(rightKeys, styles.rightColumn)}
                 </div>
 
                 <div className={styles.footer}>

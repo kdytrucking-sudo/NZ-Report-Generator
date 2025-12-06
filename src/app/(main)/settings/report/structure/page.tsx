@@ -96,6 +96,16 @@ export default function ReportStructureSettings() {
         setList(newList);
     };
 
+    const moveField = (list: StructureField[], setList: (l: StructureField[]) => void, index: number, direction: 'up' | 'down') => {
+        if (direction === 'up' && index === 0) return;
+        if (direction === 'down' && index === list.length - 1) return;
+
+        const newList = [...list];
+        const swapIndex = direction === 'up' ? index - 1 : index + 1;
+        [newList[index], newList[swapIndex]] = [newList[swapIndex], newList[index]];
+        setList(newList);
+    };
+
     // --- Content Section Editors ---
 
     const addSection = () => {
@@ -138,13 +148,30 @@ export default function ReportStructureSettings() {
         setContentSections(newSections);
     };
 
+    const moveSectionField = (sectionIndex: number, fieldIndex: number, direction: 'up' | 'down') => {
+        const newSections = [...contentSections];
+        const fields = [...newSections[sectionIndex].fields];
+
+        if (direction === 'up' && fieldIndex === 0) return;
+        if (direction === 'down' && fieldIndex === fields.length - 1) return;
+
+        const swapIndex = direction === 'up' ? fieldIndex - 1 : fieldIndex + 1;
+        [fields[fieldIndex], fields[swapIndex]] = [fields[swapIndex], fields[fieldIndex]];
+
+        newSections[sectionIndex].fields = fields;
+        setContentSections(newSections);
+    };
+
     // --- Render Helpers ---
 
     const renderFieldRow = (
         field: StructureField,
         index: number,
+        totalCount: number,
         onChange: (k: keyof StructureField, v: any) => void,
-        onDelete: () => void
+        onDelete: () => void,
+        onMoveUp: () => void,
+        onMoveDown: () => void
     ) => (
         <div key={field.id || index} className={styles.fieldRow}>
             <input
@@ -159,6 +186,20 @@ export default function ReportStructureSettings() {
                 placeholder="Placeholder"
                 onChange={(e) => onChange("placeholder", e.target.value)}
             />
+
+            {/* Options Input - Only for Select/Checkbox */}
+            {(field.displayType === 'select' || field.displayType === 'checkbox') ? (
+                <input
+                    className={styles.input}
+                    value={field.options ? field.options.join("|") : ""}
+                    placeholder="Opt1|Opt2"
+                    onChange={(e) => onChange("options", e.target.value.split("|"))}
+                    title="Separate options with |"
+                />
+            ) : (
+                <div className={styles.input} /> /* Spacer if not select/checkbox */
+            )}
+
             <input
                 className={styles.input}
                 value={field.defaultValue || ""}
@@ -195,7 +236,23 @@ export default function ReportStructureSettings() {
                 />
             </div>
             <div className={styles.actions}>
-                <button className={`${styles.iconBtn} ${styles.deleteBtn}`} onClick={onDelete}>
+                <button
+                    className={styles.iconBtn}
+                    onClick={onMoveUp}
+                    disabled={index === 0}
+                    title="Move Up"
+                >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                </button>
+                <button
+                    className={styles.iconBtn}
+                    onClick={onMoveDown}
+                    disabled={index === totalCount - 1}
+                    title="Move Down"
+                >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </button>
+                <button className={`${styles.iconBtn} ${styles.deleteBtn}`} onClick={onDelete} title="Delete">
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 </button>
             </div>
@@ -206,7 +263,8 @@ export default function ReportStructureSettings() {
         <div className={styles.fieldRowHeader}>
             <div>Label</div>
             <div>Placeholder</div>
-            <div>Default Value</div>
+            <div>Options</div>
+            <div>Default</div>
             <div>Display</div>
             <div>Type</div>
             <div style={{ textAlign: 'center' }}>Required</div>
@@ -252,8 +310,11 @@ export default function ReportStructureSettings() {
                             renderFieldRow(
                                 field,
                                 index,
+                                metaFields.length,
                                 (k, v) => updateField(metaFields, setMetaFields, index, k, v),
-                                () => removeField(metaFields, setMetaFields, index)
+                                () => removeField(metaFields, setMetaFields, index),
+                                () => moveField(metaFields, setMetaFields, index, 'up'),
+                                () => moveField(metaFields, setMetaFields, index, 'down')
                             )
                         )}
                         <div className="p-4">
@@ -271,8 +332,11 @@ export default function ReportStructureSettings() {
                             renderFieldRow(
                                 field,
                                 index,
+                                basicFields.length,
                                 (k, v) => updateField(basicFields, setBasicFields, index, k, v),
-                                () => removeField(basicFields, setBasicFields, index)
+                                () => removeField(basicFields, setBasicFields, index),
+                                () => moveField(basicFields, setBasicFields, index, 'up'),
+                                () => moveField(basicFields, setBasicFields, index, 'down')
                             )
                         )}
                         <div className="p-4">
@@ -313,8 +377,11 @@ export default function ReportStructureSettings() {
                                     renderFieldRow(
                                         field,
                                         fIndex,
+                                        section.fields.length,
                                         (k, v) => updateSectionField(sIndex, fIndex, k, v),
-                                        () => removeSectionField(sIndex, fIndex)
+                                        () => removeSectionField(sIndex, fIndex),
+                                        () => moveSectionField(sIndex, fIndex, 'up'),
+                                        () => moveSectionField(sIndex, fIndex, 'down')
                                     )
                                 )}
                                 <div className="p-4">
