@@ -6,6 +6,7 @@ import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { Report, getReport, initializeReportFromStructure, syncReportFields, ReportField, updateReport } from "@/lib/firestore-reports";
 import { getPDFExtractPrompt } from "@/lib/firestore-ai";
+import { formatDateForInput, formatDateForStorage } from "@/lib/date-utils";
 import styles from "./page.module.css";
 
 export default function PreprocessPage() {
@@ -260,8 +261,11 @@ export default function PreprocessPage() {
                                                         <input
                                                             type="date"
                                                             className={styles.input}
-                                                            value={extractValues[idx] || ""}
-                                                            onChange={(e) => setExtractValues(prev => ({ ...prev, [idx]: e.target.value }))}
+                                                            value={formatDateForInput(extractValues[idx] || "")}
+                                                            onChange={(e) => {
+                                                                const val = formatDateForStorage(e.target.value);
+                                                                setExtractValues(prev => ({ ...prev, [idx]: val }))
+                                                            }}
                                                         />
                                                     ) : (
                                                         <input

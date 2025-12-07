@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { getReport, updateReport, syncReportFields, Report, ReportField } from "@/lib/firestore-reports";
+import { formatDateForInput, formatDateForStorage } from "@/lib/date-utils";
 import styles from "./page.module.css";
 import Link from "next/link";
 
@@ -93,7 +94,14 @@ export default function ReportMetaPage() {
             case "number":
                 return <input {...commonProps} type="number" />;
             case "date":
-                return <input {...commonProps} type="date" />;
+                return (
+                    <input
+                        {...commonProps}
+                        type="date"
+                        value={formatDateForInput(field.value)}
+                        onChange={(e) => handleInputChange(key, formatDateForStorage(e.target.value))}
+                    />
+                );
             case "checkbox":
                 // If options provided -> Multi-select Checkbox Group
                 if (field.options && field.options.length > 0) {

@@ -150,14 +150,34 @@ export default function Dashboard() {
 
     const formatDate = (timestamp: any) => {
         if (!timestamp) return "N/A";
-        // Handle Firestore timestamp or JS Date
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        // Handle Firestore timestamp or JS Date or raw seconds object
+        let date;
+        if (timestamp && typeof timestamp.toDate === 'function') {
+            date = timestamp.toDate();
+        } else if (timestamp && timestamp.seconds) {
+            date = new Date(timestamp.seconds * 1000);
+        } else {
+            date = new Date(timestamp);
+        }
+
+        if (isNaN(date.getTime())) return "N/A";
+
         return date.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' });
     };
 
     const formatTime = (timestamp: any) => {
         if (!timestamp) return "";
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        let date;
+        if (timestamp && typeof timestamp.toDate === 'function') {
+            date = timestamp.toDate();
+        } else if (timestamp && timestamp.seconds) {
+            date = new Date(timestamp.seconds * 1000);
+        } else {
+            date = new Date(timestamp);
+        }
+
+        if (isNaN(date.getTime())) return "";
+
         return date.toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit' });
     };
 
@@ -298,7 +318,7 @@ export default function Dashboard() {
                                 {reports.length > 0 ? (
                                     reports.map(r => (
                                         <option key={r.id} value={r.id}>
-                                            {r.metadata?.fields?.['jobNumber']?.value || "Draft"}: {(r.metadata?.fields?.['address']?.value || "Untitled").substring(0, 20)}...
+                                            {(r.metadata?.fields?.['address']?.value || "Untitled").substring(0, 40)}...
                                         </option>
                                     ))
                                 ) : (

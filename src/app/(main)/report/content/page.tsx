@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { getReport, updateReport, syncReportFields, Report, ReportField, ReportContentSection } from "@/lib/firestore-reports";
+import { getReport, updateReport, syncReportFields, Report, ReportContentSection, ReportField } from "@/lib/firestore-reports";
+import { formatDateForInput, formatDateForStorage } from "@/lib/date-utils";
 import styles from "./page.module.css";
 import Link from "next/link";
 
@@ -137,7 +138,14 @@ export default function ReportContentPage() {
             case "number":
                 return <input {...commonProps} type="number" />;
             case "date":
-                return <input {...commonProps} type="date" />;
+                return (
+                    <input
+                        {...commonProps}
+                        type="date"
+                        value={formatDateForInput(field.value)}
+                        onChange={(e) => handleInputChange(sectionId, key, formatDateForStorage(e.target.value))}
+                    />
+                );
             case "checkbox":
                 if (field.options && field.options.length > 0) {
                     const currentValues: string[] = Array.isArray(field.value) ? field.value : [];
