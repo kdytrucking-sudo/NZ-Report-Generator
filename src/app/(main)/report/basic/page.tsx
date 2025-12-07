@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { getReport, updateReport, Report, ReportField } from "@/lib/firestore-reports";
+import { getReport, updateReport, syncReportFields, Report, ReportField } from "@/lib/firestore-reports";
 import styles from "../meta/page.module.css"; // Reuse meta styles
 import Link from "next/link";
 
@@ -60,10 +60,15 @@ export default function ReportBasicPage() {
 
         setSaving(true);
         try {
+            // Synchronize fields across the report based on placeholders
+            const updatedReport = syncReportFields(report, report.baseInfo.fields);
+
             await updateReport(user.uid, reportId, {
-                baseInfo: report.baseInfo
+                metadata: updatedReport.metadata,
+                baseInfo: updatedReport.baseInfo,
+                content: updatedReport.content
             });
-            // Proceed to next step (Content) - assuming query param structure
+            // Proceed to next step
             router.push(`/report/content?id=${reportId}`);
         } catch (error) {
             console.error("Error saving basic info:", error);

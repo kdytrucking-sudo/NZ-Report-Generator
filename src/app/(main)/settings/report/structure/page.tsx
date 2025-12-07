@@ -51,16 +51,42 @@ export default function ReportStructureSettings() {
         return () => unsubscribe();
     }, []);
 
+    const sanitizePlaceholder = (raw: string | undefined): string => {
+        if (!raw || raw.trim().length === 0) {
+            return "[Replace_NoHoder]";
+        }
+        // Remove existing brackets if any, then trim
+        let inner = raw.replace(/[\[\]]/g, '').trim();
+
+        // Remove spaces and punctuation from inner content
+        // Regex: \s for whitespace, [.,;!?] for punctuation
+        inner = inner.replace(/[\s,.;:!?]/g, '');
+
+        if (inner.length === 0) {
+            return "[Replace_NoHoder]";
+        }
+        return `[${inner}]`;
+    };
+
     const handleSave = async () => {
         if (!user) return;
         setSaving(true);
         try {
             if (activeTab === "meta") {
-                await saveMetaStructure(user.uid, metaFields);
+                const sanitized = metaFields.map(f => ({ ...f, placeholder: sanitizePlaceholder(f.placeholder) }));
+                setMetaFields(sanitized);
+                await saveMetaStructure(user.uid, sanitized);
             } else if (activeTab === "basic") {
-                await saveBasicStructure(user.uid, basicFields);
+                const sanitized = basicFields.map(f => ({ ...f, placeholder: sanitizePlaceholder(f.placeholder) }));
+                setBasicFields(sanitized);
+                await saveBasicStructure(user.uid, sanitized);
             } else if (activeTab === "content") {
-                await saveContentStructure(user.uid, contentSections);
+                const sanitized = contentSections.map(s => ({
+                    ...s,
+                    fields: s.fields.map(f => ({ ...f, placeholder: sanitizePlaceholder(f.placeholder) }))
+                }));
+                setContentSections(sanitized);
+                await saveContentStructure(user.uid, sanitized);
             }
             alert("Structure saved successfully!");
         } catch (error) {

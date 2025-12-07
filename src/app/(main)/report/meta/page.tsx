@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { getReport, updateReport, Report, ReportField } from "@/lib/firestore-reports";
+import { getReport, updateReport, syncReportFields, Report, ReportField } from "@/lib/firestore-reports";
 import styles from "./page.module.css";
 import Link from "next/link";
 
@@ -60,8 +60,13 @@ export default function ReportMetaPage() {
 
         setSaving(true);
         try {
+            // Synchronize fields across the report based on placeholders
+            const updatedReport = syncReportFields(report, report.metadata.fields);
+
             await updateReport(user.uid, reportId, {
-                metadata: report.metadata
+                metadata: updatedReport.metadata,
+                baseInfo: updatedReport.baseInfo,
+                content: updatedReport.content
             });
             // Proceed to next step
             router.push(`/report/basic?id=${reportId}`);

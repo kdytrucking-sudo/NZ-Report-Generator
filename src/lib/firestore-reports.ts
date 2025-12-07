@@ -165,3 +165,54 @@ export const deleteReport = async (uid: string, reportId: string) => {
     const docRef = doc(db, "users", uid, COLLECTION_NAME, reportId);
     await deleteDoc(docRef);
 };
+
+// --- Synchronization Helper ---
+
+export const syncReportFields = (report: Report, sourceFields: { [key: string]: ReportField }): Report => {
+    const newReport = JSON.parse(JSON.stringify(report)); // Deep copy simple way
+    const sourcePlaceholders: { [placeholder: string]: any } = {};
+
+    // 1. Collect values from source fields keyed by placeholder
+    Object.values(sourceFields).forEach(field => {
+        if (field.placeholder && field.placeholder.trim() !== "") {
+            sourcePlaceholders[field.placeholder] = field.value;
+        }
+    });
+
+    if (Object.keys(sourcePlaceholders).length === 0) return newReport;
+
+    // Helper to update a field map
+    const updateFieldMap = (fields: { [key: string]: ReportField }) => {
+        Object.keys(fields).forEach(key => {
+            const field = fields[key];
+            if (field.placeholder && sourcePlaceholders.hasOwnProperty(field.placeholder)) {
+                // Update value if different
+                // Compare loose equality or strict? Values can be arrays (checkbox). JSON stringify is safer for comparison.
+                if (JSON.stringify(field.value) !== JSON.stringify(sourcePlaceholders[field.placeholder])) {
+                    field.value = sourcePlaceholders[field.placeholder];
+                }
+            }
+        });
+    };
+
+    // 2. Update Metadata
+    if (newReport.metadata && newReport.metadata.fields) {
+        updateFieldMap(newReport.metadata.fields);
+    }
+
+    // 3. Update Basic Info
+    if (newReport.baseInfo && newReport.baseInfo.fields) {
+        updateFieldMap(newReport.baseInfo.fields);
+    }
+
+    // 4. Update All Content Sections
+    if (newReport.content) {
+        Object.values(newReport.content).forEach((section: any) => {
+            if (section.fields) {
+                updateFieldMap(section.fields);
+            }
+        });
+    }
+
+    return newReport;
+};

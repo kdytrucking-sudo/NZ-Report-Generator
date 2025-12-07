@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { getReport, updateReport, Report, ReportField, ReportContentSection } from "@/lib/firestore-reports";
+import { getReport, updateReport, syncReportFields, Report, ReportField, ReportContentSection } from "@/lib/firestore-reports";
 import styles from "./page.module.css";
 import Link from "next/link";
 
@@ -31,10 +31,21 @@ export default function ReportContentPage() {
                     setReport(data);
 
                     if (data && data.content) {
-                        // Extract sections and sort them (optional: sort by ID or other criteria)
                         const rawSections = Object.values(data.content);
-                        // Simple sort by ID or generic order
-                        rawSections.sort((a, b) => a.id.localeCompare(b.id));
+
+                        // Sort by contentOrder if available
+                        if (data.contentOrder && data.contentOrder.length > 0) {
+                            const orderMap = new Map(data.contentOrder.map((id, index) => [id, index]));
+                            rawSections.sort((a, b) => {
+                                const indexA = orderMap.has(a.id) ? orderMap.get(a.id)! : 9999;
+                                const indexB = orderMap.has(b.id) ? orderMap.get(b.id)! : 9999;
+                                return indexA - indexB;
+                            });
+                        } else {
+                            // Fallback sort
+                            rawSections.sort((a, b) => a.id.localeCompare(b.id));
+                        }
+
                         setSections(rawSections);
 
                         if (rawSections.length > 0) {
@@ -79,12 +90,26 @@ export default function ReportContentPage() {
 
         setSaving(true);
         try {
+            // Collect all fields from all sections as source
+            let allContentFields: { [key: string]: ReportField } = {};
+            if (report.content) {
+                Object.values(report.content).forEach(section => {
+                    if (section.fields) {
+                        allContentFields = { ...allContentFields, ...section.fields };
+                    }
+                });
+            }
+
+            // Synchronize fields
+            const updatedReport = syncReportFields(report, allContentFields);
+
             await updateReport(user.uid, reportId, {
-                content: report.content,
                 metadata: {
-                    ...report.metadata,
-                    status: "in_progress" // Or "completed" if this is the final step? Let's say in_progress for now until explicit finish.
-                }
+                    ...updatedReport.metadata,
+                    status: "in_progress"
+                },
+                baseInfo: updatedReport.baseInfo,
+                content: updatedReport.content
             });
             alert("Report content saved successfully!");
             router.push("/dashboard");
@@ -173,6 +198,29 @@ export default function ReportContentPage() {
 
     const activeSection = report.content[activeSectionId];
 
+    const fieldKeys = activeSection ? (activeSection.fieldOrder || Object.keys(activeSection.fields)) : [];
+    const midIndex = Math.ceil(fieldKeys.length / 2);
+    const leftKeys = fieldKeys.slice(0, midIndex);
+    const rightKeys = fieldKeys.slice(midIndex);
+
+    const renderColumnFields = (sectionId: string, keys: string[], className?: string) => (
+        <div className={`${styles.fieldGroup} ${className || ''}`}>
+            {keys.map(key => {
+                const field = activeSection.fields[key];
+                if (!field) return null;
+
+                return (
+                    <div key={key} className={styles.field}>
+                        <label htmlFor={`${sectionId}-${key}`} className={styles.label}>
+                            {field.label} {field.ifValidation && <span className="text-red-500">*</span>}
+                        </label>
+                        {renderInput(sectionId, key, field)}
+                    </div>
+                );
+            })}
+        </div>
+    );
+
     return (
         <div className={styles.container}>
             <div className={styles.header}>
@@ -196,19 +244,12 @@ export default function ReportContentPage() {
             {/* Form Area */}
             <div className={styles.formCard}>
                 {activeSection ? (
-                    <div className={styles.fieldGroup}>
+                    <div>
                         <h2 className="text-xl font-bold mb-4">{activeSection.title}</h2>
-                        {(activeSection.fieldOrder || Object.keys(activeSection.fields)).map(key => {
-                            const field = activeSection.fields[key];
-                            if (!field) return null;
-
-                            // Always use standard field wrapper
-                            return (
-                                <div key={key} className={styles.field}>
-                                    {renderInput(activeSectionId, key, field)}
-                                </div>
-                            );
-                        })}
+                        <div className={styles.columnsContainer}>
+                            {renderColumnFields(activeSectionId, leftKeys, styles.leftColumn)}
+                            {renderColumnFields(activeSectionId, rightKeys, styles.rightColumn)}
+                        </div>
                     </div>
                 ) : (
                     <div>Select a section</div>
