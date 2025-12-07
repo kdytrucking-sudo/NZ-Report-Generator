@@ -112,8 +112,7 @@ export default function ReportContentPage() {
                 baseInfo: updatedReport.baseInfo,
                 content: updatedReport.content
             });
-            alert("Report content saved successfully!");
-            router.push("/dashboard");
+            router.push(`/report/generate?id=${reportId}`);
         } catch (error) {
             console.error("Error saving content:", error);
             alert("Failed to save content.");
@@ -268,7 +267,7 @@ export default function ReportContentPage() {
                         Previous
                     </Link>
                     <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>
-                        {saving ? "Saving..." : "Save & Finish"}
+                        {saving ? "Saving..." : "Save to Review"}
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                     </button>
                 </div>

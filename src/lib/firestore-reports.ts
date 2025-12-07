@@ -44,6 +44,23 @@ export interface Report {
         brief?: ReportFile;
         title?: ReportFile;
     };
+    generatedReport?: {
+        name: string;
+        url: string;
+        createdAt: string;
+        storagePath: string;
+    };
+    images?: Record<string, {
+        path: string;
+        url: string;
+        name: string;
+    }>;
+    finalReport?: {
+        name: string;
+        url: string;
+        createdAt: string;
+        storagePath: string;
+    };
 }
 
 // --- Helpers ---
