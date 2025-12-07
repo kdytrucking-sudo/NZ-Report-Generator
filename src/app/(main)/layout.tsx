@@ -52,8 +52,8 @@ export default function MainLayout({
                         </Link>
                         <nav className={styles.nav}>
                             <Link href="/dashboard" className={`${styles.navLink} ${pathname === '/dashboard' ? styles.navLinkActive : ''}`}>Dashboard</Link>
-                            <Link href="#" className={styles.navLink}>Extractor</Link>
-                            <Link href="#" className={styles.navLink}>Reports</Link>
+                            <Link href="/job-statistics" className={`${styles.navLink} ${pathname === '/job-statistics' ? styles.navLinkActive : ''}`}>Job Statistics</Link>
+                            <Link href="/mobile-inspection" className={`${styles.navLink} ${pathname === '/mobile-inspection' ? styles.navLinkActive : ''}`}>Mobile Inspection</Link>
                             <Link href="/settings" className={`${styles.navLink} ${pathname?.startsWith('/settings') ? styles.navLinkActive : ''}`}>Settings</Link>
                         </nav>
                     </div>

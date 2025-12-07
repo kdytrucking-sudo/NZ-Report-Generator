@@ -171,7 +171,7 @@ export default function Dashboard() {
             <div className={styles.welcomeSection}>
                 <h1>
                     Welcome, {userData?.name?.split(" ")[0] || user?.displayName?.split(" ")[0] || "Valuer"}
-                    <span className={styles.jobNumberText}>(Job number: {userData?.valuerJobNumber || "..."})</span>
+                    <span className={styles.jobNumberText}>(Valuer Registration ID: {userData?.valuerJobNumber || "..."})</span>
                 </h1>
             </div>
 

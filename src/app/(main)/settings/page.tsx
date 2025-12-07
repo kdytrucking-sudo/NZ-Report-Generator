@@ -108,7 +108,7 @@ export default function SettingsPage() {
                             />
                         </div>
                         <div className={styles.field}>
-                            <label className={styles.label}>Valuer Job Number</label>
+                            <label className={styles.label}>Valuer Registration ID</label>
                             <input
                                 type="text"
                                 className={styles.input}
