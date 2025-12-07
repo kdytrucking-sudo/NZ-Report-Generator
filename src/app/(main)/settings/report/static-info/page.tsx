@@ -104,8 +104,16 @@ export default function StaticInformationPage() {
                     <div className={styles.field}>
                         <label className={styles.label}>
                             New Zealand Economy Overview
-                            <span className={styles.labelNote}>[Replace_NZEconomic]</span>
                         </label>
+                        <div className="flex gap-2 mb-1">
+                            <span className="text-xs text-gray-500 self-center">Placeholder:</span>
+                            <input
+                                type="text"
+                                className="border rounded px-2 py-1 text-sm font-mono text-blue-600 w-64"
+                                value={formData.nzEconomyOverview_ph || ""}
+                                onChange={(e) => handleChange("nzEconomyOverview_ph", e.target.value)}
+                            />
+                        </div>
                         <textarea
                             className={styles.textarea}
                             value={formData.nzEconomyOverview}
@@ -119,8 +127,16 @@ export default function StaticInformationPage() {
                     <div className={styles.field}>
                         <label className={styles.label}>
                             Global Economic Overview
-                            <span className={styles.labelNote}>[Replace_GlobalEconomic]</span>
                         </label>
+                        <div className="flex gap-2 mb-1">
+                            <span className="text-xs text-gray-500 self-center">Placeholder:</span>
+                            <input
+                                type="text"
+                                className="border rounded px-2 py-1 text-sm font-mono text-blue-600 w-64"
+                                value={formData.globalEconomyOverview_ph || ""}
+                                onChange={(e) => handleChange("globalEconomyOverview_ph", e.target.value)}
+                            />
+                        </div>
                         <textarea
                             className={styles.textarea}
                             value={formData.globalEconomyOverview}
@@ -134,8 +150,16 @@ export default function StaticInformationPage() {
                     <div className={styles.field}>
                         <label className={styles.label}>
                             Residential Market
-                            <span className={styles.labelNote}>[Replace_ResidentialMarket]</span>
                         </label>
+                        <div className="flex gap-2 mb-1">
+                            <span className="text-xs text-gray-500 self-center">Placeholder:</span>
+                            <input
+                                type="text"
+                                className="border rounded px-2 py-1 text-sm font-mono text-blue-600 w-64"
+                                value={formData.residentialMarket_ph || ""}
+                                onChange={(e) => handleChange("residentialMarket_ph", e.target.value)}
+                            />
+                        </div>
                         <textarea
                             className={styles.textarea}
                             value={formData.residentialMarket}
@@ -149,8 +173,16 @@ export default function StaticInformationPage() {
                     <div className={styles.field}>
                         <label className={styles.label}>
                             Recent Market Direction
-                            <span className={styles.labelNote}>[Replace_RecentMarketDirection]</span>
                         </label>
+                        <div className="flex gap-2 mb-1">
+                            <span className="text-xs text-gray-500 self-center">Placeholder:</span>
+                            <input
+                                type="text"
+                                className="border rounded px-2 py-1 text-sm font-mono text-blue-600 w-64"
+                                value={formData.recentMarketDirection_ph || ""}
+                                onChange={(e) => handleChange("recentMarketDirection_ph", e.target.value)}
+                            />
+                        </div>
                         <textarea
                             className={styles.textarea}
                             value={formData.recentMarketDirection}
@@ -164,8 +196,16 @@ export default function StaticInformationPage() {
                     <div className={styles.field}>
                         <label className={styles.label}>
                             Market Volatility
-                            <span className={styles.labelNote}>[Replace_MarketVolatility]</span>
                         </label>
+                        <div className="flex gap-2 mb-1">
+                            <span className="text-xs text-gray-500 self-center">Placeholder:</span>
+                            <input
+                                type="text"
+                                className="border rounded px-2 py-1 text-sm font-mono text-blue-600 w-64"
+                                value={formData.marketVolatility_ph || ""}
+                                onChange={(e) => handleChange("marketVolatility_ph", e.target.value)}
+                            />
+                        </div>
                         <textarea
                             className={styles.textarea}
                             value={formData.marketVolatility}
@@ -179,8 +219,16 @@ export default function StaticInformationPage() {
                     <div className={styles.field}>
                         <label className={styles.label}>
                             Local Economy Impact
-                            <span className={styles.labelNote}>[Replace_LocalEconomyImpact]</span>
                         </label>
+                        <div className="flex gap-2 mb-1">
+                            <span className="text-xs text-gray-500 self-center">Placeholder:</span>
+                            <input
+                                type="text"
+                                className="border rounded px-2 py-1 text-sm font-mono text-blue-600 w-64"
+                                value={formData.localEconomyImpact_ph || ""}
+                                onChange={(e) => handleChange("localEconomyImpact_ph", e.target.value)}
+                            />
+                        </div>
                         <textarea
                             className={styles.textarea}
                             value={formData.localEconomyImpact}

@@ -6,6 +6,8 @@ import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { Report, getReport, initializeReportFromStructure, syncReportFields, ReportField, updateReport } from "@/lib/firestore-reports";
 import { getPDFExtractPrompt } from "@/lib/firestore-ai";
+import { getStaticInfo, StaticInformation } from "@/lib/firestore-static";
+import { getMultiChoiceCards, MultiChoiceCard } from "@/lib/firestore-multi-choice";
 import { formatDateForInput, formatDateForStorage } from "@/lib/date-utils";
 import styles from "./page.module.css";
 
@@ -172,6 +174,169 @@ export default function PreprocessPage() {
         }
     };
 
+    // Static Data State
+    const [staticData, setStaticData] = useState<Partial<StaticInformation>>({});
+    const [staticLoading, setStaticLoading] = useState(false);
+
+    const handleLoadStatic = async () => {
+        if (!user) return;
+        setStaticLoading(true);
+        try {
+            const data = await getStaticInfo(user.uid);
+            if (data) {
+                setStaticData(data);
+            } else {
+                alert("No static information found. Please configure it in Settings.");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Failed to load static info.");
+        } finally {
+            setStaticLoading(false);
+        }
+    };
+
+    const handleUpdateStaticToReport = async () => {
+        if (!report || !user) return;
+
+        const data = staticData as StaticInformation;
+        const mapping = [
+            { key: 'nzEconomyOverview', placeholder: data.nzEconomyOverview_ph || '{%NZ_Economy_Overview}' },
+            { key: 'globalEconomyOverview', placeholder: data.globalEconomyOverview_ph || '{%Global_Economy_Overview}' },
+            { key: 'residentialMarket', placeholder: data.residentialMarket_ph || '{%Residential_Market}' },
+            { key: 'recentMarketDirection', placeholder: data.recentMarketDirection_ph || '{%Recent_Market_Direction}' },
+            { key: 'marketVolatility', placeholder: data.marketVolatility_ph || '{%Market_Volatility}' },
+            { key: 'localEconomyImpact', placeholder: data.localEconomyImpact_ph || '{%Local_Economy_Impact}' }
+        ];
+
+        const sourceFields: { [key: string]: ReportField } = {};
+
+        mapping.forEach((m, idx) => {
+            const val = (data as any)[m.key as any];
+            if (val) {
+                sourceFields[`static_${idx}`] = {
+                    id: `static_${idx}`,
+                    label: m.key,
+                    placeholder: m.placeholder,
+                    value: val,
+                    displayType: 'textarea',
+                    type: 'string',
+                    ifValidation: false
+                };
+            }
+        });
+
+        const updatedReport = syncReportFields(report, sourceFields);
+
+        try {
+            const { metadata, baseInfo, content } = updatedReport;
+            await updateReport(user.uid, report.id, { metadata, baseInfo, content });
+            setReport(updatedReport);
+            alert("Static data updated to report!");
+        } catch (e) {
+            console.error(e);
+            alert("Failed to update report with static data.");
+        }
+    };
+
+    // SWOT (Multi-Choice) Data State
+    const [swotCards, setSwotCards] = useState<MultiChoiceCard[]>([]);
+    const [swotSelections, setSwotSelections] = useState<{ [cardId: string]: { selectedOptions: string[], textValue: string } }>({});
+    const [swotLoading, setSwotLoading] = useState(false);
+
+    const handleLoadSwot = async () => {
+        if (!user) return;
+        setSwotLoading(true);
+        try {
+            const cards = await getMultiChoiceCards(user.uid);
+            setSwotCards(cards);
+
+            // Initialize selections
+            const initialSelections: any = {};
+            cards.forEach(card => {
+                initialSelections[card.id] = { selectedOptions: [], textValue: "" };
+            });
+            setSwotSelections(initialSelections);
+        } catch (error) {
+            console.error(error);
+            alert("Failed to load SWOT data.");
+        } finally {
+            setSwotLoading(false);
+        }
+    };
+
+    const handleOptionToggle = (cardId: string, optionValue: string) => {
+        setSwotSelections(prev => {
+            const cardState = prev[cardId] || { selectedOptions: [], textValue: "" };
+            const isSelected = cardState.selectedOptions.includes(optionValue);
+
+            let newOptions;
+            if (isSelected) {
+                newOptions = cardState.selectedOptions.filter(o => o !== optionValue);
+            } else {
+                newOptions = [...cardState.selectedOptions, optionValue];
+            }
+
+            // Update text value based on selected options (joined by newline)
+            const card = swotCards.find(c => c.id === cardId);
+            const textLines = newOptions.map(optVal => {
+                const opt = card?.options.find(o => o.value === optVal);
+                return opt ? opt.label : optVal;
+            });
+
+            return {
+                ...prev,
+                [cardId]: {
+                    selectedOptions: newOptions,
+                    textValue: textLines.join("\n")
+                }
+            };
+        });
+    };
+
+    const handleSwotTextChange = (cardId: string, text: string) => {
+        setSwotSelections(prev => ({
+            ...prev,
+            [cardId]: {
+                ...prev[cardId],
+                textValue: text
+            }
+        }));
+    };
+
+    const handleUpdateSwotToReport = async () => {
+        if (!report || !user) return;
+
+        const sourceFields: { [key: string]: ReportField } = {};
+
+        swotCards.forEach((card, idx) => {
+            const selection = swotSelections[card.id];
+            if (selection && card.placeholder) {
+                sourceFields[`swot_${idx}`] = {
+                    id: `swot_${idx}`,
+                    label: card.name,
+                    placeholder: card.placeholder,
+                    value: selection.textValue,
+                    displayType: 'textarea',
+                    type: 'string',
+                    ifValidation: false
+                };
+            }
+        });
+
+        const updatedReport = syncReportFields(report, sourceFields);
+
+        try {
+            const { metadata, baseInfo, content } = updatedReport;
+            await updateReport(user.uid, report.id, { metadata, baseInfo, content });
+            setReport(updatedReport);
+            alert("SWOT data updated to report!");
+        } catch (e) {
+            console.error(e);
+            alert("Failed to update report with SWOT data.");
+        }
+    };
+
     const handleNext = () => {
         if (!report) return;
         router.push(`/report/meta?id=${report.id}`);
@@ -280,6 +445,134 @@ export default function PreprocessPage() {
                                         ))}
                                     </tbody>
                                 </table>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Static Data Editor */}
+                    <div className={styles.card} style={{ gridColumn: '2 / -1' }}>
+                        <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
+                            <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Static Information</h2>
+                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                <button className={styles.secondaryBtn} onClick={handleLoadStatic} disabled={staticLoading}>
+                                    {staticLoading ? "Loading..." : "Load From Settings"}
+                                </button>
+                                <button className={styles.primaryBtn} onClick={handleUpdateStaticToReport} disabled={Object.keys(staticData).length === 0}>
+                                    Update to Report
+                                </button>
+                            </div>
+                        </div>
+
+                        {Object.keys(staticData).length === 0 ? (
+                            <div className="flex items-center justify-center h-20 text-gray-400">
+                                Click "Load From Settings" to fetch your static content.
+                            </div>
+                        ) : (
+                            <div style={{ overflowX: 'auto' }}>
+                                <table className={styles.editorTable}>
+                                    <thead>
+                                        <tr>
+                                            <th>Label</th>
+                                            <th>Placeholder</th>
+                                            <th style={{ minWidth: '400px' }}>Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {[
+                                            { key: 'nzEconomyOverview', label: 'NZ Economy Overview', placeholder: (staticData as any).nzEconomyOverview_ph },
+                                            { key: 'globalEconomyOverview', label: 'Global Economy Overview', placeholder: (staticData as any).globalEconomyOverview_ph },
+                                            { key: 'residentialMarket', label: 'Residential Market', placeholder: (staticData as any).residentialMarket_ph },
+                                            { key: 'recentMarketDirection', label: 'Recent Market Direction', placeholder: (staticData as any).recentMarketDirection_ph },
+                                            { key: 'marketVolatility', label: 'Market Volatility', placeholder: (staticData as any).marketVolatility_ph },
+                                            { key: 'localEconomyImpact', label: 'Local Economy Impact', placeholder: (staticData as any).localEconomyImpact_ph }
+                                        ].map((field) => (
+                                            <tr key={field.key}>
+                                                <td style={{ verticalAlign: 'top', paddingTop: '0.75rem' }}>{field.label}</td>
+                                                <td className="font-mono text-xs text-blue-600" style={{ verticalAlign: 'top', paddingTop: '0.75rem' }}>
+                                                    {field.placeholder || <span className="text-gray-400 italic">No placeholder</span>}
+                                                </td>
+                                                <td>
+                                                    <textarea
+                                                        className={styles.textarea}
+                                                        rows={4}
+                                                        value={(staticData as any)[field.key] || ""}
+                                                        onChange={(e) => setStaticData(prev => ({ ...prev, [field.key]: e.target.value }))}
+                                                    />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* SWOT Data Editor */}
+                    <div className={styles.card} style={{ gridColumn: '2 / -1' }}>
+                        <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
+                            <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>SWOT Data (Multi-Choice)</h2>
+                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                <button className={styles.secondaryBtn} onClick={handleLoadSwot} disabled={swotLoading}>
+                                    {swotLoading ? "Loading..." : "Load From Settings"}
+                                </button>
+                                <button className={styles.primaryBtn} onClick={handleUpdateSwotToReport} disabled={swotCards.length === 0}>
+                                    Update to Report
+                                </button>
+                            </div>
+                        </div>
+
+                        {swotCards.length === 0 ? (
+                            <div className="flex items-center justify-center h-20 text-gray-400">
+                                Click "Load From Settings" to fetch your multi-choice content (e.g., SWOT).
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                {swotCards.map((card) => {
+                                    const selection = swotSelections[card.id] || { selectedOptions: [], textValue: "" };
+
+                                    return (
+                                        <div key={card.id} className="border rounded p-4 bg-gray-50">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <h3 className="font-semibold text-lg text-gray-800">{card.name}</h3>
+                                                <span className="font-mono text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                                                    {card.placeholder}
+                                                </span>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {/* Options Column */}
+                                                <div>
+                                                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Available Options</h4>
+                                                    <div className="space-y-2">
+                                                        {card.options.map(option => (
+                                                            <label key={option.id} className="flex items-start gap-2 cursor-pointer p-2 hover:bg-white rounded transition-colors">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    className="mt-1"
+                                                                    checked={selection.selectedOptions.includes(option.value)}
+                                                                    onChange={() => handleOptionToggle(card.id, option.value)}
+                                                                />
+                                                                <span className="text-sm text-gray-700">{option.label}</span>
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* Text Area Column */}
+                                                <div>
+                                                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Selected Text (Editable)</h4>
+                                                    <textarea
+                                                        className={styles.textarea}
+                                                        rows={6}
+                                                        value={selection.textValue}
+                                                        onChange={(e) => handleSwotTextChange(card.id, e.target.value)}
+                                                        placeholder="Select options from the left or type here..."
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>

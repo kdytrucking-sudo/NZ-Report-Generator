@@ -114,9 +114,10 @@ export async function POST(req: NextRequest) {
                 // 1. Escape XML in value
                 let safeValue = escapeXml(value);
 
-                // 2. Handle Newlines: Replace \n with <w:br/>
-                // Check if current system uses \r\n or \n
-                safeValue = safeValue.replace(/\r\n/g, "\n").replace(/\n/g, "</w:t><w:br/><w:t>");
+                // 2. Handle Newlines: Replace \n with Hard Return (Paragraph Break)
+                // We close the current Text/Run/Paragraph, start a new Paragraph/Run/Text.
+                // This prevents "soft return" justification issues.
+                safeValue = safeValue.replace(/\r\n/g, "\n").replace(/\n/g, "</w:t></w:r></w:p><w:p><w:r><w:t>");
 
                 // 3. Regex Replace
                 // Escape key for regex (e.g. [ becomes \[)
