@@ -4,7 +4,7 @@ import { auth } from "@/lib/firebase";
 import styles from "./dashboard.module.css";
 import { useEffect, useState, useRef } from "react";
 import { getUserData, UserData } from "@/lib/firestore-user";
-import { getUserReports, createSampleReport, createReportFromStructure, updateReport, deleteReport, Report } from "@/lib/firestore-reports";
+import { getUserReports, createSampleReport, createReportFromStructure, createReportShell, updateReport, deleteReport, Report } from "@/lib/firestore-reports";
 import { uploadReportFile } from "@/lib/storage-reports";
 import { onAuthStateChanged } from "firebase/auth";
 import MobileDashboard from "./mobile-dashboard";
@@ -89,8 +89,8 @@ export default function Dashboard() {
 
         setCreating(true);
         try {
-            // 1. Create initial report from structure
-            const newReport = await createReportFromStructure(user.uid, newAddress, {});
+            // 1. Create initial report shell
+            const newReport = await createReportShell(user.uid, newAddress, {});
 
             // 2. Upload files
             const uploadedBrief = await uploadReportFile(user.uid, newReport.id, briefFile, "brief");
@@ -104,8 +104,8 @@ export default function Dashboard() {
                 }
             });
 
-            // 4. Redirect
-            router.push(`/report/meta?id=${newReport.id}`);
+            // 4. Redirect to Pre-processing
+            router.push(`/report/preprocess?id=${newReport.id}`);
         } catch (error) {
             console.error(error);
             alert("Failed to start new report. See console.");

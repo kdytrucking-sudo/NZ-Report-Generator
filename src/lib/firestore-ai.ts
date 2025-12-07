@@ -61,6 +61,10 @@ export const getPrompt = async (uid: string, promptId: string): Promise<AIPrompt
     return null;
 };
 
+export const getPDFExtractPrompt = async (uid: string): Promise<AIPrompt | null> => {
+    return getPrompt(uid, "pdf_extract");
+};
+
 export const updatePrompt = async (uid: string, promptId: string, data: Partial<AIPrompt>) => {
     if (!uid) return;
     const promptRef = doc(db, "users", uid, "ai_prompts", promptId);

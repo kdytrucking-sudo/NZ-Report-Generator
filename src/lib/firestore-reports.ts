@@ -82,6 +82,81 @@ const generateReportId = (address: string) => {
 
 const COLLECTION_NAME = "reports";
 
+export const createReportShell = async (
+    uid: string,
+    address: string,
+    files: { brief?: ReportFile, title?: ReportFile }
+): Promise<Report> => {
+    const reportId = generateReportId(address);
+    const createdAt = Timestamp.now();
+
+    const shellReport: any = {
+        id: reportId,
+        metadata: {
+            uid,
+            createdAt,
+            status: "initializing",
+            fields: { // Inject address if possible into a temp field or just rely on ID
+                address: { id: 'address', value: address, label: 'Address', displayType: 'text', type: 'string', placeholder: '[Replace_Address]' }
+            },
+            fieldOrder: ['address']
+        },
+        baseInfo: { fields: {}, fieldOrder: [] },
+        content: {},
+        contentOrder: [],
+        files: files
+    };
+
+    const docRef = doc(db, "users", uid, COLLECTION_NAME, reportId);
+    await setDoc(docRef, shellReport);
+    return shellReport as Report;
+};
+
+export const initializeReportFromStructure = async (uid: string, reportId: string): Promise<Report> => {
+    const structure = await getStructure(uid);
+    if (!structure) throw new Error("Structure not found");
+
+    const existingReport = await getReport(uid, reportId);
+    if (!existingReport) throw new Error("Report not found");
+
+    const metadataFields = mapStructureToReportFields(structure.meta);
+    const basicInfoFields = mapStructureToReportFields(structure.basicInfo);
+    const contentSections = mapContentSectionsToReport(structure.content);
+
+    const metadataOrder = structure.meta.map(f => f.id);
+    const basicInfoOrder = structure.basicInfo.map(f => f.id);
+    const contentOrder = structure.content.map(s => s.id);
+
+    // Preserve the address if we stored it in the shell (we did above)
+    const shellAddress = existingReport.metadata?.fields?.['address']?.value;
+    if (shellAddress && metadataFields['address']) {
+        metadataFields['address'].value = shellAddress;
+    }
+    if (shellAddress && basicInfoFields['singleLineAddress']) {
+        basicInfoFields['singleLineAddress'].value = shellAddress;
+    }
+
+    const updatedData = {
+        metadata: {
+            ...existingReport.metadata,
+            status: "draft",
+            fields: metadataFields,
+            fieldOrder: metadataOrder
+        },
+        baseInfo: {
+            fields: basicInfoFields,
+            fieldOrder: basicInfoOrder
+        },
+        content: contentSections,
+        contentOrder: contentOrder
+    };
+
+    await updateReport(uid, reportId, updatedData);
+
+    // Return full merged object
+    return { ...existingReport, ...updatedData } as Report;
+};
+
 export const createReportFromStructure = async (
     uid: string,
     address: string,

@@ -6,22 +6,24 @@ export async function POST(req: NextRequest) {
         const formData = await req.formData();
         const titleFile = formData.get("titleFile") as File;
         const briefFile = formData.get("briefFile") as File;
+        const titleUrl = formData.get("titleUrl") as string;
+        const briefUrl = formData.get("briefUrl") as string;
+
         const systemPrompt = formData.get("systemPrompt") as string;
         const userPrompt = formData.get("userPrompt") as string;
         const extractionHints = formData.get("extractionHints") as string;
         const outputJSONStructure = formData.get("outputJSONStructure") as string;
-        const modelName = formData.get("modelName") as string || "gemini-1.5-flash"; // Fallback to a known valid model
+        const modelName = formData.get("modelName") as string || "gemini-1.5-flash";
         const temperature = parseFloat(formData.get("temperature") as string || "0.2");
         const topP = parseFloat(formData.get("topP") as string || "0.95");
         const topK = parseInt(formData.get("topK") as string || "64");
         const maxOutputTokens = parseInt(formData.get("maxOutputTokens") as string || "8192");
 
-        if (!titleFile || !briefFile) {
-            return NextResponse.json({ error: "Missing files" }, { status: 400 });
+        if ((!titleFile && !titleUrl) || (!briefFile && !briefUrl)) {
+            return NextResponse.json({ error: "Missing files or URLs" }, { status: 400 });
         }
 
         // Initialize Gemini
-        // NOTE: In a real app, ensure GEMINI_API_KEY is in process.env
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {
             return NextResponse.json({ error: "Server Configuration Error: GEMINI_API_KEY is missing." }, { status: 500 });
@@ -35,16 +37,32 @@ export async function POST(req: NextRequest) {
                 topP: topP,
                 topK: topK,
                 maxOutputTokens: maxOutputTokens,
-                responseMimeType: "application/json", // Force JSON output
+                responseMimeType: "application/json",
             }
         });
 
-        // Convert files to base64
-        const titleBuffer = await titleFile.arrayBuffer();
-        const briefBuffer = await briefFile.arrayBuffer();
+        // Helper to fetch/process file
+        const getFileBase64 = async (file: File | null, url: string | null): Promise<{ base64: string, mime: string }> => {
+            if (file) {
+                const ab = await file.arrayBuffer();
+                return {
+                    base64: Buffer.from(ab).toString("base64"),
+                    mime: file.type || "application/pdf"
+                };
+            } else if (url) {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`Failed to fetch URL: ${url}`);
+                const ab = await res.arrayBuffer();
+                return {
+                    base64: Buffer.from(ab).toString("base64"),
+                    mime: res.headers.get("content-type") || "application/pdf"
+                };
+            }
+            throw new Error("No file or URL provided");
+        };
 
-        const titleBase64 = Buffer.from(titleBuffer).toString("base64");
-        const briefBase64 = Buffer.from(briefBuffer).toString("base64");
+        const { base64: titleBase64, mime: titleMime } = await getFileBase64(titleFile, titleUrl);
+        const { base64: briefBase64, mime: briefMime } = await getFileBase64(briefFile, briefUrl);
 
         // Construct parts
         const promptParts = [
@@ -68,13 +86,13 @@ ${outputJSONStructure}
             {
                 inlineData: {
                     data: titleBase64,
-                    mimeType: titleFile.type || "application/pdf"
+                    mimeType: titleMime
                 }
             },
             {
                 inlineData: {
                     data: briefBase64,
-                    mimeType: briefFile.type || "application/pdf"
+                    mimeType: briefMime
                 }
             }
         ];
