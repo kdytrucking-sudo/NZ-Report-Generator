@@ -27,7 +27,7 @@ export default function PreprocessPage() {
     const [report, setReport] = useState<Report | null>(null);
 
     // Status State
-    const [activeTab, setActiveTab] = useState<'ai-extract' | 'static-info' | 'swot' | 'construct-chattels' | 'market-value'>('ai-extract');
+    const [activeTab, setActiveTab] = useState<'ai-extract' | 'static-info' | 'swot' | 'construct-chattels' | 'market-value' | 'room-option'>('ai-extract');
     const [initDone, setInitDone] = useState(false);
 
     // AI State
@@ -275,6 +275,21 @@ export default function PreprocessPage() {
     const [phStatImprovements, setPhStatImprovements] = useState('[Replace_ValueofImprovementsFromWeb]');
     const [phStatRating, setPhStatRating] = useState('[Replace_RatingValuationFromWeb]');
 
+    // Room Option State
+    const [roomTemplates, setRoomTemplates] = useState<MultiChoiceCard[]>([]);
+    const [addedRooms, setAddedRooms] = useState<{
+        id: number;
+        templateId: string;
+        roomName: string;
+        placeholderName: string;
+        placeholderText: string;
+        selectedOptions: string[];
+        textValue: string
+    }[]>([]);
+    const [selectedRoomTemplate, setSelectedRoomTemplate] = useState<string>("");
+    const [roomLoading, setRoomLoading] = useState(false);
+    const [nextRoomId, setNextRoomId] = useState(1);
+
     // Helper: Number to Words
     const numberToWords = (num: number): string => {
         const a = ['', 'one ', 'two ', 'three ', 'four ', 'five ', 'six ', 'seven ', 'eight ', 'nine ', 'ten ', 'eleven ', 'twelve ', 'thirteen ', 'fourteen ', 'fifteen ', 'sixteen ', 'seventeen ', 'eighteen ', 'nineteen '];
@@ -311,7 +326,7 @@ export default function PreprocessPage() {
         if (isNaN(num)) return;
 
         const fmt = formatCurrency(num);
-        const text = numberToWords(num) + " Dollars"; // Simple addition of Dollars
+        const text = numberToWords(num) + " Dollars";
 
         setMvFormatted(fmt);
         setMvNarrative(text);
@@ -330,7 +345,7 @@ export default function PreprocessPage() {
     };
 
     const handleCopyOpenAddress = () => {
-        const address = "7/20 William Souter Street, Forrest Hill, Auckland"; // This should ideally come from report baseInfo
+        const address = report?.baseInfo?.fields?.['address']?.value || "7/20 William Souter Street, Forrest Hill, Auckland";
         navigator.clipboard.writeText(address);
         window.open("https://www.aucklandcouncil.govt.nz/en/property-rates-valuations/find-property-rates-valuation.html", "_blank");
     };
@@ -338,16 +353,11 @@ export default function PreprocessPage() {
     const handleUpdateMarketValueToReport = async () => {
         if (!report || !user) return;
 
-        // Prepare source fields using EDITABLE placeholders as keys
         const sourceFields: { [key: string]: ReportField } = {};
 
-        // Helper to add field
         const addField = (ph: string, val: string, label: string) => {
-            // Trim placeholder to ensure clean match
             const cleanPh = ph.trim();
             if (!cleanPh) return;
-
-            // Ensure value is formatted if it looks like a number
             let finalValue = val;
             if (val && !val.toString().includes('$') && !isNaN(parseFloat(val.toString().replace(/,/g, '')))) {
                 finalValue = formatCurrency(val);
@@ -364,17 +374,12 @@ export default function PreprocessPage() {
             };
         };
 
-        // Market Value fields
         addField(phMarketValue, mvFormatted, 'Formatted Market Value');
         addField(phMarketValuation, `${mvFormatted}\n${mvNarrative}`, 'Market Valuation Narrative');
-
-        // Breakdown fields
         addField(phImprovement, formatCurrency(bdImprovements), 'Improvements (Valuer)');
         addField(phLand, formatCurrency(bdLand), 'Land Value (Valuer)');
         addField(phChattels, formatCurrency(bdChattels), 'Chattels (Valuer)');
         addField(phTotalMarket, bdTotal, 'Total Market Value (Sum)');
-
-        // Statutory fields
         addField(phStatLand, formatCurrency(statLand), 'Statutory Land Value');
         addField(phStatImprovements, formatCurrency(statImprovements), 'Statutory Improvements');
         addField(phStatRating, formatCurrency(statRating), 'Statutory Rating Valuation');
@@ -400,7 +405,6 @@ export default function PreprocessPage() {
             const chData = await getChattelsSettings(user.uid);
             setConstructData(cData);
             setChattelsData(chData);
-            // Initialize text placeholders?
         } catch (error) {
             console.error(error);
             alert("Failed to load Construct/Chattels data.");
@@ -412,22 +416,12 @@ export default function PreprocessPage() {
     const generateConstructText = (cIds: string[], iIds: string[], cSettings: ConstructSettings | null) => {
         if (!cSettings) return "";
         let text = "";
-
-        // Construct Elements
         if (cIds.length > 0) {
-            const labels = cSettings.elements
-                .filter(e => cIds.includes(e.id))
-                .map(e => e.label);
-            if (labels.length > 0) {
-                text += "General construction elements comprise what appears to be " + labels.join(", ") + ".";
-            }
+            const labels = cSettings.elements.filter(e => cIds.includes(e.id)).map(e => e.label);
+            if (labels.length > 0) text += "General construction elements comprise what appears to be " + labels.join(", ") + ".";
         }
-
-        // Interior Elements
         if (iIds.length > 0) {
-            const labels = cSettings.interiorElements
-                .filter(e => iIds.includes(e.id))
-                .map(e => e.label);
+            const labels = cSettings.interiorElements.filter(e => iIds.includes(e.id)).map(e => e.label);
             if (labels.length > 0) {
                 if (text) text += "\n";
                 text += "The interior appears to be mostly timber framed with " + labels.join(", ") + ".";
@@ -438,35 +432,24 @@ export default function PreprocessPage() {
 
     const generateChattelsText = (chIds: string[], chSettings: ChattelsSettings | null) => {
         if (!chSettings) return "";
-        // Chattels List
         if (chIds.length > 0) {
-            const labels = chSettings.list
-                .filter(e => chIds.includes(e.id))
-                .map(e => e.label);
-            if (labels.length > 0) {
-                return "We have included in our valuation an allowance for " + labels.join(", ") + ".";
-            }
+            const labels = chSettings.list.filter(e => chIds.includes(e.id)).map(e => e.label);
+            if (labels.length > 0) return "We have included in our valuation an allowance for " + labels.join(", ") + ".";
         }
         return "";
     };
 
     const toggleSelection = (listType: 'construct' | 'interior' | 'chattels', id: string) => {
         if (listType === 'construct') {
-            const newList = selectedConstruct.includes(id)
-                ? selectedConstruct.filter(x => x !== id)
-                : [...selectedConstruct, id];
+            const newList = selectedConstruct.includes(id) ? selectedConstruct.filter(x => x !== id) : [...selectedConstruct, id];
             setSelectedConstruct(newList);
             setConstructText(generateConstructText(newList, selectedInterior, constructData));
         } else if (listType === 'interior') {
-            const newList = selectedInterior.includes(id)
-                ? selectedInterior.filter(x => x !== id)
-                : [...selectedInterior, id];
+            const newList = selectedInterior.includes(id) ? selectedInterior.filter(x => x !== id) : [...selectedInterior, id];
             setSelectedInterior(newList);
             setConstructText(generateConstructText(selectedConstruct, newList, constructData));
         } else if (listType === 'chattels') {
-            const newList = selectedChattels.includes(id)
-                ? selectedChattels.filter(x => x !== id)
-                : [...selectedChattels, id];
+            const newList = selectedChattels.includes(id) ? selectedChattels.filter(x => x !== id) : [...selectedChattels, id];
             setSelectedChattels(newList);
             setChattelsText(generateChattelsText(newList, chattelsData));
         }
@@ -474,60 +457,30 @@ export default function PreprocessPage() {
 
     const handleUpdateCCToReport = async () => {
         if (!report || !user || !constructData || !chattelsData) return;
-
-        // This logic is tentative until defined
         const sourceFields: { [key: string]: ReportField } = {};
-
-        // Find fields in report content that match the placeholders
         const findFieldId = (ph: string) => {
             if (!report.content) return null;
-
             let foundId: string | null = null;
             const traverse = (obj: any) => {
                 if (foundId) return;
                 if (!obj || typeof obj !== 'object') return;
-
-                if (obj.placeholder === ph && obj.id) {
-                    foundId = obj.id;
-                    return;
-                }
-
-                for (const key in obj) {
-                    traverse(obj[key]);
-                }
+                if (obj.placeholder === ph && obj.id) { foundId = obj.id; return; }
+                for (const key in obj) { traverse(obj[key]); }
             };
-
             traverse(report.content);
             return foundId;
         };
 
         if (constructData.replaceholder) {
             const targetId = findFieldId(constructData.replaceholder) || 'construct_desc';
-            sourceFields[targetId] = {
-                id: targetId,
-                label: 'Construct Description',
-                placeholder: constructData.replaceholder,
-                value: constructText,
-                displayType: 'textarea',
-                type: 'string',
-                ifValidation: false
-            };
+            sourceFields[targetId] = { id: targetId, label: 'Construct Description', placeholder: constructData.replaceholder, value: constructText, displayType: 'textarea', type: 'string', ifValidation: false };
         }
         if (chattelsData.replaceholder) {
             const targetId = findFieldId(chattelsData.replaceholder) || 'chattels_desc';
-            sourceFields[targetId] = {
-                id: targetId,
-                label: 'Chattels Description',
-                placeholder: chattelsData.replaceholder,
-                value: chattelsText,
-                displayType: 'textarea',
-                type: 'string',
-                ifValidation: false
-            };
+            sourceFields[targetId] = { id: targetId, label: 'Chattels Description', placeholder: chattelsData.replaceholder, value: chattelsText, displayType: 'textarea', type: 'string', ifValidation: false };
         }
 
         const updatedReport = syncReportFields(report, sourceFields);
-
         try {
             const { metadata, baseInfo, content } = updatedReport;
             await updateReport(user.uid, report.id, { metadata, baseInfo, content });
@@ -539,20 +492,14 @@ export default function PreprocessPage() {
         }
     };
 
-
     const handleLoadSwot = async () => {
         if (!user) return;
         setSwotLoading(true);
         try {
             const allCards = await getMultiChoiceCards(user.uid);
-
-            // Filter for only specific placeholders
             const allowedPlaceholders = ['[Replace_Weaknesses]', '[Replace_Strengths]'];
             const filteredCards = allCards.filter(card => allowedPlaceholders.includes(card.placeholder));
-
             setSwotCards(filteredCards);
-
-            // Initialize selections
             const initialSelections: any = {};
             filteredCards.forEach(card => {
                 initialSelections[card.id] = { selectedOptions: [], textValue: "" };
@@ -570,58 +517,122 @@ export default function PreprocessPage() {
         setSwotSelections(prev => {
             const cardState = prev[cardId] || { selectedOptions: [], textValue: "" };
             const isSelected = cardState.selectedOptions.includes(optionValue);
-
             let newOptions;
             if (isSelected) {
                 newOptions = cardState.selectedOptions.filter(o => o !== optionValue);
             } else {
                 newOptions = [...cardState.selectedOptions, optionValue];
             }
-
-            // Update text value based on selected options (joined by newline)
             const card = swotCards.find(c => c.id === cardId);
             const textLines = newOptions.map(optVal => {
                 const opt = card?.options.find(o => o.value === optVal);
                 return opt ? opt.label : optVal;
             });
-
-            return {
-                ...prev,
-                [cardId]: {
-                    selectedOptions: newOptions,
-                    textValue: textLines.join("\n")
-                }
-            };
+            return { ...prev, [cardId]: { selectedOptions: newOptions, textValue: textLines.join("\n") } };
         });
     };
 
     const handleSwotTextChange = (cardId: string, text: string) => {
-        setSwotSelections(prev => ({
-            ...prev,
-            [cardId]: {
-                ...prev[cardId],
-                textValue: text
-            }
-        }));
+        setSwotSelections(prev => ({ ...prev, [cardId]: { ...prev[cardId], textValue: text } }));
     };
 
     const handleUpdateSwotToReport = async () => {
         if (!report || !user) return;
-
         const sourceFields: { [key: string]: ReportField } = {};
-
         swotCards.forEach((card, idx) => {
             const selection = swotSelections[card.id];
             if (selection && card.placeholder) {
-                sourceFields[`swot_${idx}`] = {
-                    id: `swot_${idx}`,
-                    label: card.name,
-                    placeholder: card.placeholder,
-                    value: selection.textValue,
-                    displayType: 'textarea',
-                    type: 'string',
-                    ifValidation: false
-                };
+                sourceFields[`swot_${idx}`] = { id: `swot_${idx}`, label: card.name, placeholder: card.placeholder, value: selection.textValue, displayType: 'textarea', type: 'string', ifValidation: false };
+            }
+        });
+        const updatedReport = syncReportFields(report, sourceFields);
+        try {
+            const { metadata, baseInfo, content } = updatedReport;
+            await updateReport(user.uid, report.id, { metadata, baseInfo, content });
+            setReport(updatedReport);
+            alert("SWOT data updated to report!");
+        } catch (e) {
+            console.error(e);
+            alert("Failed to update report with SWOT data.");
+        }
+    };
+
+    // ==========================
+    // Room Option Handlers
+    // ==========================
+    const handleLoadRoomSettings = async () => {
+        if (!user) return;
+        setRoomLoading(true);
+        try {
+            const allCards = await getMultiChoiceCards(user.uid);
+            // Filter cards starting with Replace_RoomName
+            const rooms = allCards.filter(c => c.placeholder && c.placeholder.includes("Replace_RoomName"));
+            setRoomTemplates(rooms);
+            if (rooms.length > 0) setSelectedRoomTemplate(rooms[0].id);
+        } catch (error) {
+            console.error(error);
+            alert("Failed to load Room Settings.");
+        } finally {
+            setRoomLoading(false);
+        }
+    };
+
+    const handleAddRoom = () => {
+        if (!selectedRoomTemplate) return;
+        const template = roomTemplates.find(t => t.id === selectedRoomTemplate);
+        if (!template) return;
+
+        const newRoom = {
+            id: nextRoomId,
+            templateId: template.id,
+            roomName: template.name,
+            placeholderName: `[Replace_RoomOptionName${nextRoomId}]`,
+            placeholderText: `[Replace_RoomOptionText${nextRoomId}]`,
+            selectedOptions: [],
+            textValue: ""
+        };
+
+        setAddedRooms([newRoom, ...addedRooms]);
+        setNextRoomId(prev => prev + 1);
+    };
+
+    const handleDeleteRoom = (index: number) => {
+        const newRooms = [...addedRooms];
+        newRooms.splice(index, 1);
+        setAddedRooms(newRooms);
+    };
+
+    const handleRoomOptionInfoToggle = (roomIndex: number, optionValue: string, optionLabel: string) => {
+        const newRooms = [...addedRooms];
+        const room = newRooms[roomIndex];
+
+        let newSelected = [...room.selectedOptions];
+        // User said: "Database has Label and Text, select Label" - interpreted as toggling by Label for storage/display?
+        // "Room Option text in left ... separated by comma"
+        // Let's store Labels in selectedOptions for simplicity as requested "select Label"
+        if (newSelected.includes(optionLabel)) {
+            newSelected = newSelected.filter(l => l !== optionLabel);
+        } else {
+            newSelected.push(optionLabel);
+        }
+
+        room.selectedOptions = newSelected;
+        room.textValue = newSelected.join(", ");
+
+        setAddedRooms(newRooms);
+    };
+
+    const handleUpdateRoomToReport = async () => {
+        if (!report || !user) return;
+
+        const sourceFields: { [key: string]: ReportField } = {};
+
+        addedRooms.forEach(room => {
+            if (room.placeholderName) {
+                sourceFields[room.placeholderName] = { id: room.placeholderName, label: 'Room Name', placeholder: room.placeholderName, value: room.roomName, displayType: 'text', type: 'string', ifValidation: false };
+            }
+            if (room.placeholderText) {
+                sourceFields[room.placeholderText] = { id: room.placeholderText, label: 'Room Text', placeholder: room.placeholderText, value: room.textValue, displayType: 'text', type: 'string', ifValidation: false };
             }
         });
 
@@ -631,10 +642,10 @@ export default function PreprocessPage() {
             const { metadata, baseInfo, content } = updatedReport;
             await updateReport(user.uid, report.id, { metadata, baseInfo, content });
             setReport(updatedReport);
-            alert("SWOT data updated to report!");
+            alert("Room Options updated to report!");
         } catch (e) {
             console.error(e);
-            alert("Failed to update report with SWOT data.");
+            alert("Failed to update report with Room Options.");
         }
     };
 
@@ -647,7 +658,6 @@ export default function PreprocessPage() {
         <div className={styles.container}>
             <div className={styles.header}>
                 <h1 className={styles.title}>Data Pre-processing</h1>
-
             </div>
 
             {/* Tabs */}
@@ -681,6 +691,12 @@ export default function PreprocessPage() {
                     onClick={() => setActiveTab('construct-chattels')}
                 >
                     Construct/Chattels
+                </button>
+                <button
+                    className={`${styles.tab} ${activeTab === 'room-option' ? styles.activeTab : ''}`}
+                    onClick={() => setActiveTab('room-option')}
+                >
+                    Room Option
                 </button>
             </div>
 
@@ -772,9 +788,10 @@ export default function PreprocessPage() {
                         </div>
                     )}
 
+
                     {activeTab === 'static-info' && (
                         <div className={styles.card}>
-                            <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
+                            <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-4">
                                 <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Static Information</h2>
                                 <div style={{ display: 'flex', gap: '1rem' }}>
                                     <button className={styles.secondaryBtn} onClick={handleLoadStatic} disabled={staticLoading}>
@@ -791,41 +808,33 @@ export default function PreprocessPage() {
                                     Click "Load From Settings" to fetch your static content.
                                 </div>
                             ) : (
-                                <div style={{ overflowX: 'auto' }}>
-                                    <table className={`${styles.editorTable} ${styles.staticTable}`}>
-                                        <thead>
-                                            <tr>
-                                                <th>Label</th>
-                                                <th>Placeholder</th>
-                                                <th>Value</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {[
-                                                { key: 'nzEconomyOverview', label: 'NZ Economy', placeholder: (staticData as any).nzEconomyOverview_ph },
-                                                { key: 'globalEconomyOverview', label: 'Global Econ', placeholder: (staticData as any).globalEconomyOverview_ph },
-                                                { key: 'residentialMarket', label: 'Res. Market', placeholder: (staticData as any).residentialMarket_ph },
-                                                { key: 'recentMarketDirection', label: 'Mkt Direction', placeholder: (staticData as any).recentMarketDirection_ph },
-                                                { key: 'marketVolatility', label: 'Mkt Volatility', placeholder: (staticData as any).marketVolatility_ph },
-                                                { key: 'localEconomyImpact', label: 'Local Econ', placeholder: (staticData as any).localEconomyImpact_ph }
-                                            ].map((field) => (
-                                                <tr key={field.key}>
-                                                    <td style={{ verticalAlign: 'top', paddingTop: '0.75rem' }}>{field.label}</td>
-                                                    <td className="font-mono text-xs text-blue-600" style={{ verticalAlign: 'top', paddingTop: '0.75rem' }}>
-                                                        {field.placeholder || <span className="text-gray-400 italic">No placeholder</span>}
-                                                    </td>
-                                                    <td>
-                                                        <textarea
-                                                            className={styles.textarea}
-                                                            rows={4}
-                                                            value={(staticData as any)[field.key] || ""}
-                                                            onChange={(e) => setStaticData(prev => ({ ...prev, [field.key]: e.target.value }))}
-                                                        />
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                <div className={styles.staticInfoGrid}>
+                                    {[
+                                        { key: 'nzEconomyOverview', label: 'NZ Economy Overview', placeholder: (staticData as any).nzEconomyOverview_ph },
+                                        { key: 'globalEconomyOverview', label: 'Global Economy Overview', placeholder: (staticData as any).globalEconomyOverview_ph },
+                                        { key: 'residentialMarket', label: 'Residential Market', placeholder: (staticData as any).residentialMarket_ph },
+                                        { key: 'recentMarketDirection', label: 'Market Direction', placeholder: (staticData as any).recentMarketDirection_ph },
+                                        { key: 'marketVolatility', label: 'Market Volatility', placeholder: (staticData as any).marketVolatility_ph },
+                                        { key: 'localEconomyImpact', label: 'Local Economy Impact', placeholder: (staticData as any).localEconomyImpact_ph }
+                                    ].map((field) => (
+                                        <div key={field.key} className={styles.staticInfoCard}>
+                                            <div className={styles.staticInfoLeft}>
+                                                <div className={styles.staticInfoLabel}>{field.label}</div>
+                                                <div className={styles.staticInfoPlaceholder}>
+                                                    {field.placeholder || <span className="text-gray-400 italic">No placeholder</span>}
+                                                </div>
+                                            </div>
+                                            <div className={styles.staticInfoRight}>
+                                                <textarea
+                                                    className={styles.staticInfoTextarea}
+                                                    rows={5}
+                                                    value={(staticData as any)[field.key] || ""}
+                                                    onChange={(e) => setStaticData(prev => ({ ...prev, [field.key]: e.target.value }))}
+                                                    placeholder={`Enter ${field.label.toLowerCase()}...`}
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>
@@ -850,7 +859,7 @@ export default function PreprocessPage() {
                                     Click "Load From Settings" to fetch your multi-choice content (e.g., SWOT).
                                 </div>
                             ) : (
-                                <div className="space-y-6">
+                                <div>
                                     {swotCards.map((card) => {
                                         const selection = swotSelections[card.id] || { selectedOptions: [], textValue: "" };
 
@@ -864,8 +873,7 @@ export default function PreprocessPage() {
                                                 <div className={styles.swotBody}>
                                                     {/* Options Column */}
                                                     <div className={styles.swotLeft}>
-                                                        <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Available Options</h4>
-                                                        <div className="space-y-1">
+                                                        <div className="space-y-1 flex-1 overflow-y-auto">
                                                             {card.options.map(option => (
                                                                 <label key={option.id} className="flex items-start gap-2 cursor-pointer p-2 hover:bg-white rounded transition-colors text-sm">
                                                                     <input
@@ -882,10 +890,9 @@ export default function PreprocessPage() {
 
                                                     {/* Text Area Column */}
                                                     <div className={styles.swotRight}>
-                                                        <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Selected Text (Editable)</h4>
                                                         <textarea
                                                             className={styles.textarea}
-                                                            style={{ height: '100%', minHeight: '200px' }}
+                                                            style={{ flex: 1, minHeight: '150px', resize: 'vertical' }}
                                                             value={selection.textValue}
                                                             onChange={(e) => handleSwotTextChange(card.id, e.target.value)}
                                                             placeholder="Select options from the left or type here..."
@@ -902,226 +909,228 @@ export default function PreprocessPage() {
 
                     {activeTab === 'market-value' && (
                         <div className={styles.card}>
-                            <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
+                            <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-4">
                                 <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Market Value</h2>
                                 <button className={styles.primaryBtn} onClick={handleUpdateMarketValueToReport}>
                                     Update To Report
                                 </button>
                             </div>
 
-                            <div className={styles.marketTabGrid}>
-                                {/* Market Valuation Input & Summary */}
-                                <div className={styles.marketCard}>
-                                    <div className="flex justify-between items-start">
-                                        <h3 className="font-bold text-lg text-gray-800">Market Value</h3>
-                                    </div>
+                            <div className={styles.marketValueContainer}>
+                                {/* Market Value Input Card */}
+                                <div className={styles.marketValueCard}>
+                                    <h3 className={styles.marketValueCardHeader}>Market Value</h3>
 
-                                    <div className={styles.inputGroup}>
-                                        <div className={styles.labelRow}>
-                                            <span className={styles.labelText}>Market Value ($)</span>
+                                    <div className={styles.marketValueGrid}>
+                                        <div className={styles.marketValueInputGroup}>
+                                            <label className={styles.marketValueLabel}>Market Value ($)</label>
+                                            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                                <input
+                                                    className={styles.marketValueInput}
+                                                    placeholder="560000"
+                                                    value={mvInput}
+                                                    onChange={(e) => setMvInput(e.target.value)}
+                                                />
+                                                <button className={styles.marketValueButton} onClick={handleMvUpdate}>
+                                                    Update
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center justify-between">
-                                            <input
-                                                className={styles.input}
-                                                placeholder="560000"
-                                                style={{ maxWidth: '250px' }}
-                                                value={mvInput}
-                                                onChange={(e) => setMvInput(e.target.value)}
-                                            />
-                                            <button
-                                                className="bg-purple-600 text-white px-4 py-2 rounded font-semibold hover:bg-purple-700"
-                                                onClick={handleMvUpdate}
-                                            >
-                                                Update
-                                            </button>
-                                        </div>
-                                    </div>
 
-                                    <div className={styles.inputGroup}>
-                                        <div className={styles.labelRow}>
-                                            <span className={styles.labelText}>Formatted Market Value</span>
+                                        <div className={styles.marketValueInputGroup}>
+                                            <label className={styles.marketValueLabel}>
+                                                Formatted Value
+                                                <span
+                                                    className={styles.marketValuePlaceholder}
+                                                    title={phMarketValue}
+                                                >
+                                                    P
+                                                </span>
+                                            </label>
                                             <input
-                                                className="text-xs text-blue-600 border border-blue-200 rounded px-1 ml-2 flex-grow"
-                                                value={phMarketValue}
-                                                onChange={(e) => setPhMarketValue(e.target.value)}
-                                            />
-                                        </div>
-                                        <input className={styles.input} value={mvFormatted} readOnly style={{ maxWidth: '250px' }} />
-                                    </div>
-
-                                    <div className={styles.inputGroup}>
-                                        <div className={styles.labelRow}>
-                                            <span className={styles.labelText}>Narrative</span>
-                                            <input
-                                                className="text-xs text-blue-600 border border-blue-200 rounded px-1 ml-2 flex-grow"
-                                                value={phMarketValuation}
-                                                onChange={(e) => setPhMarketValuation(e.target.value)}
+                                                className={styles.marketValueInput}
+                                                value={mvFormatted}
+                                                readOnly
                                             />
                                         </div>
-                                        {/* Requirement: use the 3rd text box logic but display narrative components */}
-                                        <div className={styles.narrativeBox + " flex-col flex"} style={{ maxWidth: '250px' }}>
-                                            {mvFormatted && <span className={styles.narrativeAmount}>{mvFormatted}</span>}
-                                            {mvNarrative && <span className={styles.narrativeText}>{mvNarrative}</span>}
+
+                                        <div className={styles.marketValueInputGroup}>
+                                            <label className={styles.marketValueLabel}>
+                                                Narrative
+                                                <span
+                                                    className={styles.marketValuePlaceholder}
+                                                    title={phMarketValuation}
+                                                >
+                                                    P
+                                                </span>
+                                            </label>
+                                            <div className={styles.marketValueNarrative}>
+                                                {mvFormatted && <span className={styles.marketValueNarrativeAmount}>{mvFormatted}</span>}
+                                                {mvNarrative && <span className={styles.marketValueNarrativeText}>{mvNarrative}</span>}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Valuation Breakdown */}
-                                <div className={styles.marketCard}>
-                                    <h3 className="font-bold text-lg text-gray-800">Valuation Breakdown</h3>
+                                {/* Valuation Breakdown Card */}
+                                <div className={styles.marketValueCard}>
+                                    <h3 className={styles.marketValueCardHeader}>Valuation Breakdown</h3>
 
-                                    <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-                                        <div className={styles.inputGroup}>
-                                            <div className={styles.labelRow}>
-                                                <span className={styles.labelText}>Improvements</span>
-                                                <input
-                                                    className="text-xs text-blue-600 border border-blue-200 rounded px-1 ml-2 w-24"
-                                                    value={phImprovement}
-                                                    onChange={(e) => setPhImprovement(e.target.value)}
-                                                />
-                                            </div>
+                                    <div className={styles.marketValueGrid}>
+                                        <div className={styles.marketValueInputGroup}>
+                                            <label className={styles.marketValueLabel}>
+                                                Improvements
+                                                <span
+                                                    className={styles.marketValuePlaceholder}
+                                                    title={phImprovement}
+                                                >
+                                                    P
+                                                </span>
+                                            </label>
                                             <input
-                                                className={styles.input}
+                                                className={styles.marketValueInput}
                                                 placeholder="130,000"
                                                 value={bdImprovements}
                                                 onChange={(e) => setBdImprovements(e.target.value)}
-                                                style={{ maxWidth: '160px' }}
                                             />
                                         </div>
 
-                                        <div className={styles.inputGroup}>
-                                            <div className={styles.labelRow}>
-                                                <span className={styles.labelText}>land</span>
-                                                <input
-                                                    className="text-xs text-blue-600 border border-blue-200 rounded px-1 ml-2 w-24"
-                                                    value={phLand}
-                                                    onChange={(e) => setPhLand(e.target.value)}
-                                                />
-                                            </div>
+                                        <div className={styles.marketValueInputGroup}>
+                                            <label className={styles.marketValueLabel}>
+                                                Land
+                                                <span
+                                                    className={styles.marketValuePlaceholder}
+                                                    title={phLand}
+                                                >
+                                                    P
+                                                </span>
+                                            </label>
                                             <input
-                                                className={styles.input}
+                                                className={styles.marketValueInput}
                                                 placeholder="340,000"
                                                 value={bdLand}
                                                 onChange={(e) => setBdLand(e.target.value)}
-                                                style={{ maxWidth: '160px' }}
                                             />
                                         </div>
 
-                                        <div className={styles.inputGroup}>
-                                            <div className={styles.labelRow}>
-                                                <span className={styles.labelText}>Chattels</span>
-                                                <input
-                                                    className="text-xs text-blue-600 border border-blue-200 rounded px-1 ml-2 w-24"
-                                                    value={phChattels}
-                                                    onChange={(e) => setPhChattels(e.target.value)}
-                                                />
-                                            </div>
+                                        <div className={styles.marketValueInputGroup}>
+                                            <label className={styles.marketValueLabel}>
+                                                Chattels
+                                                <span
+                                                    className={styles.marketValuePlaceholder}
+                                                    title={phChattels}
+                                                >
+                                                    P
+                                                </span>
+                                            </label>
                                             <input
-                                                className={styles.input}
+                                                className={styles.marketValueInput}
                                                 placeholder="80,000"
                                                 value={bdChattels}
                                                 onChange={(e) => setBdChattels(e.target.value)}
-                                                style={{ maxWidth: '160px' }}
                                             />
                                         </div>
 
-                                        <div className={styles.inputGroup}>
-                                            <div className="flex justify-between items-center mb-1">
-                                                <div className="flex items-center">
-                                                    <span className={styles.labelText}>/Total</span>
-                                                    <input
-                                                        className="text-xs text-blue-600 border border-blue-200 rounded px-1 ml-2 w-24"
-                                                        value={phTotalMarket}
-                                                        onChange={(e) => setPhTotalMarket(e.target.value)}
-                                                    />
-                                                </div>
+                                        <div className={styles.marketValueInputGroup}>
+                                            <label className={styles.marketValueLabel}>
+                                                Total
+                                                <span
+                                                    className={styles.marketValuePlaceholder}
+                                                    title={phTotalMarket}
+                                                >
+                                                    P
+                                                </span>
+                                            </label>
+                                            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                                <input
+                                                    className={styles.marketValueInput}
+                                                    value={bdTotal}
+                                                    readOnly
+                                                />
+                                                {bdMatch === 'equal' && (
+                                                    <span className={`${styles.marketValueStatus} ${styles.marketValueStatusSuccess}`}>
+                                                        ✓ Equal
+                                                    </span>
+                                                )}
+                                                {bdMatch === 'error' && (
+                                                    <span className={`${styles.marketValueStatus} ${styles.marketValueStatusError}`}>
+                                                        ✗ Error
+                                                    </span>
+                                                )}
+                                                <button className={styles.marketValueButtonSecondary} onClick={handleBdSum}>
+                                                    Sum & Check
+                                                </button>
                                             </div>
-                                            <input
-                                                className={styles.input}
-                                                value={bdTotal}
-                                                readOnly
-                                                style={{ maxWidth: '160px' }}
-                                            />
                                         </div>
                                     </div>
+                                </div>
 
-                                    <div className="flex items-center justify-end mt-4 gap-4">
-                                        {bdMatch === 'equal' && <span className="text-green-600 font-bold text-sm">Equal</span>}
-                                        {bdMatch === 'error' && <span className="text-red-600 font-bold text-sm">Error</span>}
-                                        <button
-                                            className="bg-gray-100 text-gray-700 border border-gray-300 px-4 py-2 rounded text-sm hover:bg-gray-200 font-semibold"
-                                            onClick={handleBdSum}
-                                        >
-                                            Sum & Check
+                                {/* Statutory Valuation Card */}
+                                <div className={`${styles.marketValueCard} ${styles.marketValueStatutory}`}>
+                                    <div className={styles.marketValueStatutoryHeader}>
+                                        <h3 className={styles.marketValueStatutoryTitle}>Statutory Valuation</h3>
+                                        <span className={styles.marketValueStatutoryAddress}>
+                                            {report?.baseInfo?.fields?.['address']?.value || "7/20 William Souter Street, Forrest Hill, Auckland"}
+                                        </span>
+                                        <button className={styles.marketValueStatutoryButton} onClick={handleCopyOpenAddress}>
+                                            Copy & Open
                                         </button>
                                     </div>
-                                </div>
-                            </div>
 
-                            {/* Statutory Valuation */}
-                            <div className={styles.statutoryCard}>
-                                <div className="flex items-center gap-3 mb-4">
-                                    <h3 className="font-bold text-lg text-gray-800 mr-4">Statutory Valuation</h3>
-                                    <span className="text-blue-600 text-sm">{report?.baseInfo?.fields?.['address']?.value || "7/20 William Souter Street, Forrest Hill, Auckland"}</span>
-                                    <button
-                                        onClick={handleCopyOpenAddress}
-                                        className="text-xs bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-2 py-1 ml-auto"
-                                    >
-                                        Copy & Open
-                                    </button>
-                                </div>
+                                    <div className={styles.marketValueGrid}>
+                                        <div className={styles.marketValueInputGroup}>
+                                            <label className={styles.marketValueLabel}>
+                                                Land
+                                                <span
+                                                    className={styles.marketValuePlaceholder}
+                                                    title={phStatLand}
+                                                >
+                                                    P
+                                                </span>
+                                            </label>
+                                            <input
+                                                className={styles.marketValueInput}
+                                                placeholder="340,000"
+                                                value={statLand}
+                                                onChange={(e) => setStatLand(e.target.value)}
+                                            />
+                                        </div>
 
-                                <div className="grid grid-cols-3 gap-8">
-                                    <div className={styles.inputGroup}>
-                                        <div className={styles.labelRow}>
-                                            <span className={styles.labelText}>land</span>
+                                        <div className={styles.marketValueInputGroup}>
+                                            <label className={styles.marketValueLabel}>
+                                                Improvement
+                                                <span
+                                                    className={styles.marketValuePlaceholder}
+                                                    title={phStatImprovements}
+                                                >
+                                                    P
+                                                </span>
+                                            </label>
                                             <input
-                                                className="text-xs text-blue-600 border border-blue-200 rounded px-1 ml-1 w-32"
-                                                value={phStatLand}
-                                                onChange={(e) => setPhStatLand(e.target.value)}
+                                                className={styles.marketValueInput}
+                                                placeholder="130,000"
+                                                value={statImprovements}
+                                                onChange={(e) => setStatImprovements(e.target.value)}
                                             />
                                         </div>
-                                        <input
-                                            className={styles.input}
-                                            placeholder="340,000"
-                                            value={statLand}
-                                            onChange={(e) => setStatLand(e.target.value)}
-                                            style={{ maxWidth: '160px' }}
-                                        />
-                                    </div>
-                                    <div className={styles.inputGroup}>
-                                        <div className={styles.labelRow}>
-                                            <span className={styles.labelText}>Improvement</span>
+
+                                        <div className={styles.marketValueInputGroup}>
+                                            <label className={styles.marketValueLabel}>
+                                                Rating
+                                                <span
+                                                    className={styles.marketValuePlaceholder}
+                                                    title={phStatRating}
+                                                >
+                                                    P
+                                                </span>
+                                            </label>
                                             <input
-                                                className="text-xs text-blue-600 border border-blue-200 rounded px-1 ml-1 w-32"
-                                                value={phStatImprovements}
-                                                onChange={(e) => setPhStatImprovements(e.target.value)}
+                                                className={styles.marketValueInput}
+                                                placeholder="550,000"
+                                                value={statRating}
+                                                onChange={(e) => setStatRating(e.target.value)}
                                             />
                                         </div>
-                                        <input
-                                            className={styles.input}
-                                            placeholder="130,000"
-                                            value={statImprovements}
-                                            onChange={(e) => setStatImprovements(e.target.value)}
-                                            style={{ maxWidth: '160px' }}
-                                        />
-                                    </div>
-                                    <div className={styles.inputGroup}>
-                                        <div className={styles.labelRow}>
-                                            <span className={styles.labelText}>Rating</span>
-                                            <input
-                                                className="text-xs text-blue-600 border border-blue-200 rounded px-1 ml-1 w-32"
-                                                value={phStatRating}
-                                                onChange={(e) => setPhStatRating(e.target.value)}
-                                            />
-                                        </div>
-                                        <input
-                                            className={styles.input}
-                                            placeholder="550,000"
-                                            value={statRating}
-                                            onChange={(e) => setStatRating(e.target.value)}
-                                            style={{ maxWidth: '160px' }}
-                                        />
                                     </div>
                                 </div>
                             </div>
@@ -1147,9 +1156,9 @@ export default function PreprocessPage() {
                                     Click "Load From Settings" to fetch Construct & Chattels data.
                                 </div>
                             ) : (
-                                <div className="space-y-6">
+                                <div>
                                     {/* Construct Card */}
-                                    <div className="border rounded p-6 bg-white shadow-sm">
+                                    <div className={styles.ccCard}>
                                         <div className={styles.ccHeaderRow}>
                                             <h3 className={styles.ccTitle}>Construct Card</h3>
                                         </div>
@@ -1162,7 +1171,7 @@ export default function PreprocessPage() {
                                                 </div>
                                                 <div className={styles.optionList}>
                                                     {constructData?.elements?.map(opt => (
-                                                        <label key={opt.id} className="flex items-start gap-2 cursor-pointer p-1 hover:bg-gray-100 rounded transition-colors text-sm">
+                                                        <label key={opt.id} className="flex items-start gap-2 cursor-pointer p-1 hover:bg-gray-50 rounded transition-colors text-sm">
                                                             <input
                                                                 type="checkbox"
                                                                 className="mt-1"
@@ -1180,7 +1189,7 @@ export default function PreprocessPage() {
                                                 <div className={styles.ccSubHeader}>
                                                     <span className={styles.ccLabel}>Interior Element</span>
                                                 </div>
-                                                <div className={styles.optionList} style={{ marginBottom: '1.5rem' }}>
+                                                <div className={styles.optionList} style={{ marginBottom: '1rem', maxHeight: '120px' }}>
                                                     {constructData?.interiorElements?.map(opt => (
                                                         <label key={opt.id} className="flex items-start gap-2 cursor-pointer p-1 hover:bg-gray-50 rounded transition-colors text-sm">
                                                             <input
@@ -1194,13 +1203,17 @@ export default function PreprocessPage() {
                                                     ))}
                                                 </div>
 
-                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                                                    <h4 className="text-xs font-semibold text-gray-500 uppercase">Construct Description</h4>
-                                                    <span className={styles.swotPlaceholder}>{constructData?.replaceholder}</span>
+                                                <div className={styles.ccDescriptionHeader}>
+                                                    <span className={styles.ccDescriptionTitle}>Construct Description</span>
+                                                    <span
+                                                        className={styles.ccPlaceholder}
+                                                        title={constructData?.replaceholder}
+                                                    >
+                                                        P
+                                                    </span>
                                                 </div>
                                                 <textarea
-                                                    className={styles.textarea}
-                                                    rows={8}
+                                                    className={styles.ccTextarea}
                                                     value={constructText}
                                                     onChange={(e) => setConstructText(e.target.value)}
                                                     placeholder="Text will be generated here..."
@@ -1210,7 +1223,7 @@ export default function PreprocessPage() {
                                     </div>
 
                                     {/* Chattels Card */}
-                                    <div className="border rounded p-6 bg-white shadow-sm">
+                                    <div className={styles.ccCard}>
                                         <div className={styles.ccHeaderRow}>
                                             <h3 className={styles.ccTitle}>Chattels Card</h3>
                                         </div>
@@ -1223,7 +1236,7 @@ export default function PreprocessPage() {
                                                 </div>
                                                 <div className={styles.optionList}>
                                                     {chattelsData?.list?.map(opt => (
-                                                        <label key={opt.id} className="flex items-start gap-2 cursor-pointer p-1 hover:bg-gray-100 rounded transition-colors text-sm">
+                                                        <label key={opt.id} className="flex items-start gap-2 cursor-pointer p-1 hover:bg-gray-50 rounded transition-colors text-sm">
                                                             <input
                                                                 type="checkbox"
                                                                 className="mt-1"
@@ -1238,13 +1251,17 @@ export default function PreprocessPage() {
 
                                             {/* Right Column: Description Only */}
                                             <div className={styles.ccColumnRight}>
-                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                                                    <h4 className="text-xs font-semibold text-gray-500 uppercase">Chattels Description</h4>
-                                                    <span className={styles.swotPlaceholder}>{chattelsData?.replaceholder}</span>
+                                                <div className={styles.ccDescriptionHeader}>
+                                                    <span className={styles.ccDescriptionTitle}>Chattels Description</span>
+                                                    <span
+                                                        className={styles.ccPlaceholder}
+                                                        title={chattelsData?.replaceholder}
+                                                    >
+                                                        P
+                                                    </span>
                                                 </div>
                                                 <textarea
-                                                    className={styles.textarea}
-                                                    rows={8}
+                                                    className={styles.ccTextarea}
                                                     value={chattelsText}
                                                     onChange={(e) => setChattelsText(e.target.value)}
                                                     placeholder="Text will be generated here..."
@@ -1257,13 +1274,139 @@ export default function PreprocessPage() {
                         </div>
                     )}
 
+                    {activeTab === 'room-option' && (
+                        <div className={styles.card}>
+                            <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-6">
+                                <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Room Option</h2>
+                                <div style={{ display: 'flex', gap: '1rem' }}>
+                                    <button className={styles.secondaryBtn} onClick={handleLoadRoomSettings} disabled={roomLoading}>
+                                        {roomLoading ? "Loading..." : "Load From Settings"}
+                                    </button>
+                                    <button className={styles.primaryBtn} onClick={handleUpdateRoomToReport}>
+                                        Update to Report
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Add Room Card */}
+                            {roomTemplates.length > 0 && (
+                                <div className={styles.addRoomCard}>
+                                    <h3 className={styles.addRoomTitle}>Add Room</h3>
+
+                                    <div className={styles.addRoomControls}>
+                                        <div className={styles.selectWrapper}>
+                                            <select
+                                                className={styles.roomSelect}
+                                                value={selectedRoomTemplate}
+                                                onChange={(e) => setSelectedRoomTemplate(e.target.value)}
+                                            >
+                                                {roomTemplates.map(t => (
+                                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                                ))}
+                                            </select>
+                                            <div className={styles.selectIcon}>
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                            </div>
+                                        </div>
+                                        <button
+                                            className={styles.addRoomBtn}
+                                            onClick={handleAddRoom}
+                                        >
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                                            Add
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Added Rooms List */}
+                            <div className={styles.roomsList}>
+                                {addedRooms.map((room, idx) => {
+                                    const template = roomTemplates.find(t => t.id === room.templateId);
+                                    return (
+                                        <div key={room.id} className={styles.roomCard}>
+                                            {/* Card Header */}
+                                            <div className={styles.roomCardHeader}>
+                                                <h3 className={styles.roomCardTitle}>Room Option {room.id}</h3>
+                                                <button
+                                                    onClick={() => handleDeleteRoom(idx)}
+                                                    className={styles.deleteRoomBtn}
+                                                    title="Remove Room"
+                                                >
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                                </button>
+                                            </div>
+
+                                            <div className={styles.roomCardBody}>
+                                                {/* Left Column: Inputs */}
+                                                <div className={styles.roomCardLeft}>
+                                                    <div className={styles.roomInputGroup}>
+                                                        <div className={styles.roomInputHeader}>
+                                                            <label className={styles.roomInputLabel}>Room Name</label>
+                                                            <span className={styles.roomPlaceholder}>
+                                                                {room.placeholderName}
+                                                            </span>
+                                                        </div>
+                                                        <input
+                                                            className={styles.roomInput}
+                                                            value={room.roomName}
+                                                            onChange={(e) => {
+                                                                const newRooms = [...addedRooms];
+                                                                newRooms[idx].roomName = e.target.value;
+                                                                setAddedRooms(newRooms);
+                                                            }}
+                                                        />
+                                                    </div>
+
+                                                    <div className={styles.roomInputGroup}>
+                                                        <div className={styles.roomInputHeader}>
+                                                            <label className={styles.roomInputLabel}>Room Option Text</label>
+                                                            <span className={styles.roomPlaceholder}>
+                                                                {room.placeholderText}
+                                                            </span>
+                                                        </div>
+                                                        <textarea
+                                                            className={styles.roomTextarea}
+                                                            value={room.textValue}
+                                                            readOnly
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* Right Column: Options */}
+                                                <div className={styles.roomCardRight}>
+                                                    <div className={styles.roomOptionsBox}>
+                                                        <div className={styles.roomOptionsList}>
+                                                            {template?.options.map(opt => (
+                                                                <label key={opt.id} className={styles.roomOptionItem}>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        className={styles.roomCheckbox}
+                                                                        checked={room.selectedOptions.includes(opt.label)}
+                                                                        onChange={() => handleRoomOptionInfoToggle(idx, opt.value, opt.label)}
+                                                                    />
+                                                                    <span className={styles.roomOptionText}>{opt.label}</span>
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Footer Actions */}
                     <div className={styles.footer}>
                         <button className={styles.secondaryBtn} onClick={() => router.push('/dashboard')}>Cancel</button>
                         <button className={styles.primaryBtn} onClick={handleNext}>Next: Meta Info &rarr;</button>
                     </div>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }
