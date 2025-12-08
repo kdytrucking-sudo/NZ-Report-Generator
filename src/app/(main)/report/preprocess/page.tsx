@@ -27,7 +27,7 @@ export default function PreprocessPage() {
     const [report, setReport] = useState<Report | null>(null);
 
     // Status State
-    const [activeTab, setActiveTab] = useState<'ai-extract' | 'static-info' | 'swot' | 'construct-chattels'>('ai-extract');
+    const [activeTab, setActiveTab] = useState<'ai-extract' | 'static-info' | 'swot' | 'construct-chattels' | 'market-value'>('ai-extract');
     const [initDone, setInitDone] = useState(false);
 
     // AI State
@@ -249,6 +249,149 @@ export default function PreprocessPage() {
     const [constructText, setConstructText] = useState("");
     const [chattelsText, setChattelsText] = useState("");
 
+    // Market Value State
+    const [mvInput, setMvInput] = useState("");
+    const [mvFormatted, setMvFormatted] = useState("");
+    const [mvNarrative, setMvNarrative] = useState("");
+
+    const [bdImprovements, setBdImprovements] = useState("");
+    const [bdLand, setBdLand] = useState("");
+    const [bdChattels, setBdChattels] = useState("");
+    const [bdTotal, setBdTotal] = useState("");
+    const [bdMatch, setBdMatch] = useState<'equal' | 'error' | null>(null);
+
+    const [statLand, setStatLand] = useState("");
+    const [statImprovements, setStatImprovements] = useState("");
+    const [statRating, setStatRating] = useState("");
+
+    // State for placeholders (default values)
+    const [phMarketValue, setPhMarketValue] = useState('[Replace_MarketValue]');
+    const [phMarketValuation, setPhMarketValuation] = useState('[Replace_MarketValuation]');
+    const [phImprovement, setPhImprovement] = useState('[Replace_ImprovementValueByValuer]');
+    const [phLand, setPhLand] = useState('[Replace_LandValueByValuer]');
+    const [phChattels, setPhChattels] = useState('[Replace_ChattelsByValuer]');
+    const [phTotalMarket, setPhTotalMarket] = useState('[Replace_MarketValueByValuer]');
+    const [phStatLand, setPhStatLand] = useState('[Replace_LandValueFromWeb]');
+    const [phStatImprovements, setPhStatImprovements] = useState('[Replace_ValueofImprovementsFromWeb]');
+    const [phStatRating, setPhStatRating] = useState('[Replace_RatingValuationFromWeb]');
+
+    // Helper: Number to Words
+    const numberToWords = (num: number): string => {
+        const a = ['', 'one ', 'two ', 'three ', 'four ', 'five ', 'six ', 'seven ', 'eight ', 'nine ', 'ten ', 'eleven ', 'twelve ', 'thirteen ', 'fourteen ', 'fifteen ', 'sixteen ', 'seventeen ', 'eighteen ', 'nineteen '];
+        const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+
+        const numToText = (n: number): string => {
+            if ((n = n.toString().length > 9 ? parseFloat(n.toString().slice(0, 9)) : n) === 0) return '';
+            if (n < 20) return a[n];
+            if (n < 100) return b[Math.floor(n / 10)] + ' ' + a[n % 10];
+            if (n < 1000) return a[Math.floor(n / 100)] + 'hundred ' + numToText(n % 100);
+            if (n < 1000000) return numToText(Math.floor(n / 1000)) + 'thousand ' + numToText(n % 1000);
+            if (n < 1000000000) return numToText(Math.floor(n / 1000000)) + 'million ' + numToText(n % 1000000);
+            return '';
+        }
+
+        if (num === 0) return 'zero';
+        let str = numToText(num);
+        return str.trim().replace(/\s+/g, ' ').replace(/^./, c => c.toUpperCase());
+    };
+
+    const formatCurrency = (val: string | number) => {
+        if (!val) return "";
+        const num = typeof val === 'string' ? parseFloat(val.replace(/[$,]/g, '')) : val;
+        if (isNaN(num)) return val.toString();
+        return new Intl.NumberFormat('en-NZ', { style: 'currency', currency: 'NZD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num);
+    };
+
+    const parseNumber = (val: string) => {
+        return parseFloat(val.replace(/[$,]/g, ''));
+    };
+
+    const handleMvUpdate = () => {
+        const num = parseNumber(mvInput);
+        if (isNaN(num)) return;
+
+        const fmt = formatCurrency(num);
+        const text = numberToWords(num) + " Dollars"; // Simple addition of Dollars
+
+        setMvFormatted(fmt);
+        setMvNarrative(text);
+    };
+
+    const handleBdSum = () => {
+        const imp = parseNumber(bdImprovements) || 0;
+        const land = parseNumber(bdLand) || 0;
+        const chat = parseNumber(bdChattels) || 0;
+
+        const sum = imp + land + chat;
+        setBdTotal(formatCurrency(sum));
+
+        const mvNum = parseNumber(mvInput) || 0;
+        setBdMatch(Math.abs(sum - mvNum) < 1 ? 'equal' : 'error');
+    };
+
+    const handleCopyOpenAddress = () => {
+        const address = "7/20 William Souter Street, Forrest Hill, Auckland"; // This should ideally come from report baseInfo
+        navigator.clipboard.writeText(address);
+        window.open("https://www.aucklandcouncil.govt.nz/en/property-rates-valuations/find-property-rates-valuation.html", "_blank");
+    };
+
+    const handleUpdateMarketValueToReport = async () => {
+        if (!report || !user) return;
+
+        // Prepare source fields using EDITABLE placeholders as keys
+        const sourceFields: { [key: string]: ReportField } = {};
+
+        // Helper to add field
+        const addField = (ph: string, val: string, label: string) => {
+            // Trim placeholder to ensure clean match
+            const cleanPh = ph.trim();
+            if (!cleanPh) return;
+
+            // Ensure value is formatted if it looks like a number
+            let finalValue = val;
+            if (val && !val.toString().includes('$') && !isNaN(parseFloat(val.toString().replace(/,/g, '')))) {
+                finalValue = formatCurrency(val);
+            }
+
+            sourceFields[cleanPh] = {
+                id: cleanPh,
+                label,
+                placeholder: cleanPh,
+                value: finalValue,
+                displayType: 'text',
+                type: 'string',
+                ifValidation: false
+            };
+        };
+
+        // Market Value fields
+        addField(phMarketValue, mvFormatted, 'Formatted Market Value');
+        addField(phMarketValuation, `${mvFormatted}\n${mvNarrative}`, 'Market Valuation Narrative');
+
+        // Breakdown fields
+        addField(phImprovement, formatCurrency(bdImprovements), 'Improvements (Valuer)');
+        addField(phLand, formatCurrency(bdLand), 'Land Value (Valuer)');
+        addField(phChattels, formatCurrency(bdChattels), 'Chattels (Valuer)');
+        addField(phTotalMarket, bdTotal, 'Total Market Value (Sum)');
+
+        // Statutory fields
+        addField(phStatLand, formatCurrency(statLand), 'Statutory Land Value');
+        addField(phStatImprovements, formatCurrency(statImprovements), 'Statutory Improvements');
+        addField(phStatRating, formatCurrency(statRating), 'Statutory Rating Valuation');
+
+        const updatedReport = syncReportFields(report, sourceFields);
+
+        try {
+            const { metadata, baseInfo, content } = updatedReport;
+            await updateReport(user.uid, report.id, { metadata, baseInfo, content });
+            setReport(updatedReport);
+            alert("Market Value data updated to report successfully!");
+        } catch (e) {
+            console.error(e);
+            alert("Failed to update report with Market Value data.");
+        }
+    };
+
     const handleLoadConstructChattels = async () => {
         if (!user) return;
         setCcLoading(true);
@@ -401,12 +544,17 @@ export default function PreprocessPage() {
         if (!user) return;
         setSwotLoading(true);
         try {
-            const cards = await getMultiChoiceCards(user.uid);
-            setSwotCards(cards);
+            const allCards = await getMultiChoiceCards(user.uid);
+
+            // Filter for only specific placeholders
+            const allowedPlaceholders = ['[Replace_Weaknesses]', '[Replace_Strengths]'];
+            const filteredCards = allCards.filter(card => allowedPlaceholders.includes(card.placeholder));
+
+            setSwotCards(filteredCards);
 
             // Initialize selections
             const initialSelections: any = {};
-            cards.forEach(card => {
+            filteredCards.forEach(card => {
                 initialSelections[card.id] = { selectedOptions: [], textValue: "" };
             });
             setSwotSelections(initialSelections);
@@ -499,7 +647,7 @@ export default function PreprocessPage() {
         <div className={styles.container}>
             <div className={styles.header}>
                 <h1 className={styles.title}>Data Pre-processing</h1>
-                <p className={styles.subtitle}>Initializing report and extracting data from files.</p>
+
             </div>
 
             {/* Tabs */}
@@ -521,6 +669,12 @@ export default function PreprocessPage() {
                     onClick={() => setActiveTab('swot')}
                 >
                     SWOT Data
+                </button>
+                <button
+                    className={`${styles.tab} ${activeTab === 'market-value' ? styles.activeTab : ''}`}
+                    onClick={() => setActiveTab('market-value')}
+                >
+                    Market Value
                 </button>
                 <button
                     className={`${styles.tab} ${activeTab === 'construct-chattels' ? styles.activeTab : ''}`}
@@ -743,6 +897,234 @@ export default function PreprocessPage() {
                                     })}
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {activeTab === 'market-value' && (
+                        <div className={styles.card}>
+                            <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
+                                <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Market Value</h2>
+                                <button className={styles.primaryBtn} onClick={handleUpdateMarketValueToReport}>
+                                    Update To Report
+                                </button>
+                            </div>
+
+                            <div className={styles.marketTabGrid}>
+                                {/* Market Valuation Input & Summary */}
+                                <div className={styles.marketCard}>
+                                    <div className="flex justify-between items-start">
+                                        <h3 className="font-bold text-lg text-gray-800">Market Value</h3>
+                                    </div>
+
+                                    <div className={styles.inputGroup}>
+                                        <div className={styles.labelRow}>
+                                            <span className={styles.labelText}>Market Value ($)</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <input
+                                                className={styles.input}
+                                                placeholder="560000"
+                                                style={{ maxWidth: '250px' }}
+                                                value={mvInput}
+                                                onChange={(e) => setMvInput(e.target.value)}
+                                            />
+                                            <button
+                                                className="bg-purple-600 text-white px-4 py-2 rounded font-semibold hover:bg-purple-700"
+                                                onClick={handleMvUpdate}
+                                            >
+                                                Update
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className={styles.inputGroup}>
+                                        <div className={styles.labelRow}>
+                                            <span className={styles.labelText}>Formatted Market Value</span>
+                                            <input
+                                                className="text-xs text-blue-600 border border-blue-200 rounded px-1 ml-2 flex-grow"
+                                                value={phMarketValue}
+                                                onChange={(e) => setPhMarketValue(e.target.value)}
+                                            />
+                                        </div>
+                                        <input className={styles.input} value={mvFormatted} readOnly style={{ maxWidth: '250px' }} />
+                                    </div>
+
+                                    <div className={styles.inputGroup}>
+                                        <div className={styles.labelRow}>
+                                            <span className={styles.labelText}>Narrative</span>
+                                            <input
+                                                className="text-xs text-blue-600 border border-blue-200 rounded px-1 ml-2 flex-grow"
+                                                value={phMarketValuation}
+                                                onChange={(e) => setPhMarketValuation(e.target.value)}
+                                            />
+                                        </div>
+                                        {/* Requirement: use the 3rd text box logic but display narrative components */}
+                                        <div className={styles.narrativeBox + " flex-col flex"} style={{ maxWidth: '250px' }}>
+                                            {mvFormatted && <span className={styles.narrativeAmount}>{mvFormatted}</span>}
+                                            {mvNarrative && <span className={styles.narrativeText}>{mvNarrative}</span>}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Valuation Breakdown */}
+                                <div className={styles.marketCard}>
+                                    <h3 className="font-bold text-lg text-gray-800">Valuation Breakdown</h3>
+
+                                    <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                                        <div className={styles.inputGroup}>
+                                            <div className={styles.labelRow}>
+                                                <span className={styles.labelText}>Improvements</span>
+                                                <input
+                                                    className="text-xs text-blue-600 border border-blue-200 rounded px-1 ml-2 w-24"
+                                                    value={phImprovement}
+                                                    onChange={(e) => setPhImprovement(e.target.value)}
+                                                />
+                                            </div>
+                                            <input
+                                                className={styles.input}
+                                                placeholder="130,000"
+                                                value={bdImprovements}
+                                                onChange={(e) => setBdImprovements(e.target.value)}
+                                                style={{ maxWidth: '160px' }}
+                                            />
+                                        </div>
+
+                                        <div className={styles.inputGroup}>
+                                            <div className={styles.labelRow}>
+                                                <span className={styles.labelText}>land</span>
+                                                <input
+                                                    className="text-xs text-blue-600 border border-blue-200 rounded px-1 ml-2 w-24"
+                                                    value={phLand}
+                                                    onChange={(e) => setPhLand(e.target.value)}
+                                                />
+                                            </div>
+                                            <input
+                                                className={styles.input}
+                                                placeholder="340,000"
+                                                value={bdLand}
+                                                onChange={(e) => setBdLand(e.target.value)}
+                                                style={{ maxWidth: '160px' }}
+                                            />
+                                        </div>
+
+                                        <div className={styles.inputGroup}>
+                                            <div className={styles.labelRow}>
+                                                <span className={styles.labelText}>Chattels</span>
+                                                <input
+                                                    className="text-xs text-blue-600 border border-blue-200 rounded px-1 ml-2 w-24"
+                                                    value={phChattels}
+                                                    onChange={(e) => setPhChattels(e.target.value)}
+                                                />
+                                            </div>
+                                            <input
+                                                className={styles.input}
+                                                placeholder="80,000"
+                                                value={bdChattels}
+                                                onChange={(e) => setBdChattels(e.target.value)}
+                                                style={{ maxWidth: '160px' }}
+                                            />
+                                        </div>
+
+                                        <div className={styles.inputGroup}>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <div className="flex items-center">
+                                                    <span className={styles.labelText}>/Total</span>
+                                                    <input
+                                                        className="text-xs text-blue-600 border border-blue-200 rounded px-1 ml-2 w-24"
+                                                        value={phTotalMarket}
+                                                        onChange={(e) => setPhTotalMarket(e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <input
+                                                className={styles.input}
+                                                value={bdTotal}
+                                                readOnly
+                                                style={{ maxWidth: '160px' }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-end mt-4 gap-4">
+                                        {bdMatch === 'equal' && <span className="text-green-600 font-bold text-sm">Equal</span>}
+                                        {bdMatch === 'error' && <span className="text-red-600 font-bold text-sm">Error</span>}
+                                        <button
+                                            className="bg-gray-100 text-gray-700 border border-gray-300 px-4 py-2 rounded text-sm hover:bg-gray-200 font-semibold"
+                                            onClick={handleBdSum}
+                                        >
+                                            Sum & Check
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Statutory Valuation */}
+                            <div className={styles.statutoryCard}>
+                                <div className="flex items-center gap-3 mb-4">
+                                    <h3 className="font-bold text-lg text-gray-800 mr-4">Statutory Valuation</h3>
+                                    <span className="text-blue-600 text-sm">{report?.baseInfo?.fields?.['address']?.value || "7/20 William Souter Street, Forrest Hill, Auckland"}</span>
+                                    <button
+                                        onClick={handleCopyOpenAddress}
+                                        className="text-xs bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-2 py-1 ml-auto"
+                                    >
+                                        Copy & Open
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-8">
+                                    <div className={styles.inputGroup}>
+                                        <div className={styles.labelRow}>
+                                            <span className={styles.labelText}>land</span>
+                                            <input
+                                                className="text-xs text-blue-600 border border-blue-200 rounded px-1 ml-1 w-32"
+                                                value={phStatLand}
+                                                onChange={(e) => setPhStatLand(e.target.value)}
+                                            />
+                                        </div>
+                                        <input
+                                            className={styles.input}
+                                            placeholder="340,000"
+                                            value={statLand}
+                                            onChange={(e) => setStatLand(e.target.value)}
+                                            style={{ maxWidth: '160px' }}
+                                        />
+                                    </div>
+                                    <div className={styles.inputGroup}>
+                                        <div className={styles.labelRow}>
+                                            <span className={styles.labelText}>Improvement</span>
+                                            <input
+                                                className="text-xs text-blue-600 border border-blue-200 rounded px-1 ml-1 w-32"
+                                                value={phStatImprovements}
+                                                onChange={(e) => setPhStatImprovements(e.target.value)}
+                                            />
+                                        </div>
+                                        <input
+                                            className={styles.input}
+                                            placeholder="130,000"
+                                            value={statImprovements}
+                                            onChange={(e) => setStatImprovements(e.target.value)}
+                                            style={{ maxWidth: '160px' }}
+                                        />
+                                    </div>
+                                    <div className={styles.inputGroup}>
+                                        <div className={styles.labelRow}>
+                                            <span className={styles.labelText}>Rating</span>
+                                            <input
+                                                className="text-xs text-blue-600 border border-blue-200 rounded px-1 ml-1 w-32"
+                                                value={phStatRating}
+                                                onChange={(e) => setPhStatRating(e.target.value)}
+                                            />
+                                        </div>
+                                        <input
+                                            className={styles.input}
+                                            placeholder="550,000"
+                                            value={statRating}
+                                            onChange={(e) => setStatRating(e.target.value)}
+                                            style={{ maxWidth: '160px' }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
 

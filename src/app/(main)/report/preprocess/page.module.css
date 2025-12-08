@@ -308,3 +308,100 @@
     background: #94a3b8;
     cursor: not-allowed;
 }
+
+/* Market Value Tab Styles */
+.marketTabGrid {
+    display: grid;
+    grid-template-columns: 2fr 3fr;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+    .marketTabGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.marketCard {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.statutoryCard {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin-top: 2rem;
+}
+
+.inputGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.labelRow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.25rem;
+}
+
+.labelText {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #1e293b;
+}
+
+.readOnlyBox {
+    background-color: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    padding: 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    color: #334155;
+    min-height: 2.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.narrativeBox {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 1rem;
+    border-radius: 0.5rem;
+}
+
+.narrativeAmount {
+    font-weight: 700;
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 1rem;
+    color: #0f172a;
+}
+
+.narrativeText {
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+.statGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .statGrid {
+        grid-template-columns: 1fr;
+    }
+}
