@@ -9,6 +9,13 @@ import { getPDFExtractPrompt } from "@/lib/firestore-ai";
 import { getStaticInfo, StaticInformation } from "@/lib/firestore-static";
 import { getMultiChoiceCards, MultiChoiceCard } from "@/lib/firestore-multi-choice";
 import { formatDateForInput, formatDateForStorage } from "@/lib/date-utils";
+import {
+    getConstructSettings,
+    getChattelsSettings,
+    ConstructSettings,
+    ChattelsSettings
+} from "@/lib/firestore-construct-chattels";
+
 import styles from "./page.module.css";
 
 export default function PreprocessPage() {
@@ -20,11 +27,7 @@ export default function PreprocessPage() {
     const [report, setReport] = useState<Report | null>(null);
 
     // Status State
-    const [statusSteps, setStatusSteps] = useState([
-        { id: 1, text: "Connecting to database...", status: "pending" },
-        { id: 2, text: "Reading structure...", status: "pending" },
-        { id: 3, text: "Initializing report record...", status: "pending" },
-    ]);
+    const [activeTab, setActiveTab] = useState<'ai-extract' | 'static-info' | 'swot' | 'construct-chattels'>('ai-extract');
     const [initDone, setInitDone] = useState(false);
 
     // AI State
@@ -48,26 +51,14 @@ export default function PreprocessPage() {
         return () => unsubscribe();
     }, [reportId, router]);
 
-    const updateStep = (id: number, status: string) => {
-        setStatusSteps(prev => prev.map(s => s.id === id ? { ...s, status } : s));
-    };
 
     const initProcess = async (uid: string, rId: string) => {
         try {
-            updateStep(1, "doing");
             let rep = await getReport(uid, rId);
-            updateStep(1, "done");
 
             if (rep) {
                 if (rep.metadata?.status === 'initializing') {
-                    updateStep(2, "doing");
-                    updateStep(3, "doing");
                     rep = await initializeReportFromStructure(uid, rId);
-                    updateStep(2, "done");
-                    updateStep(3, "done");
-                } else {
-                    updateStep(2, "done");
-                    updateStep(3, "done");
                 }
                 setReport(rep);
                 setInitDone(true);
@@ -244,6 +235,168 @@ export default function PreprocessPage() {
     const [swotSelections, setSwotSelections] = useState<{ [cardId: string]: { selectedOptions: string[], textValue: string } }>({});
     const [swotLoading, setSwotLoading] = useState(false);
 
+    // Construct/Chattels State
+    const [constructData, setConstructData] = useState<ConstructSettings | null>(null);
+    const [chattelsData, setChattelsData] = useState<ChattelsSettings | null>(null);
+    const [ccLoading, setCcLoading] = useState(false);
+
+    // Selections (just IDs for now)
+    const [selectedConstruct, setSelectedConstruct] = useState<string[]>([]);
+    const [selectedInterior, setSelectedInterior] = useState<string[]>([]);
+    const [selectedChattels, setSelectedChattels] = useState<string[]>([]);
+
+    // Text Values
+    const [constructText, setConstructText] = useState("");
+    const [chattelsText, setChattelsText] = useState("");
+
+    const handleLoadConstructChattels = async () => {
+        if (!user) return;
+        setCcLoading(true);
+        try {
+            const cData = await getConstructSettings(user.uid);
+            const chData = await getChattelsSettings(user.uid);
+            setConstructData(cData);
+            setChattelsData(chData);
+            // Initialize text placeholders?
+        } catch (error) {
+            console.error(error);
+            alert("Failed to load Construct/Chattels data.");
+        } finally {
+            setCcLoading(false);
+        }
+    };
+
+    const generateConstructText = (cIds: string[], iIds: string[], cSettings: ConstructSettings | null) => {
+        if (!cSettings) return "";
+        let text = "";
+
+        // Construct Elements
+        if (cIds.length > 0) {
+            const labels = cSettings.elements
+                .filter(e => cIds.includes(e.id))
+                .map(e => e.label);
+            if (labels.length > 0) {
+                text += "General construction elements comprise what appears to be " + labels.join(", ") + ".";
+            }
+        }
+
+        // Interior Elements
+        if (iIds.length > 0) {
+            const labels = cSettings.interiorElements
+                .filter(e => iIds.includes(e.id))
+                .map(e => e.label);
+            if (labels.length > 0) {
+                if (text) text += "\n";
+                text += "The interior appears to be mostly timber framed with " + labels.join(", ") + ".";
+            }
+        }
+        return text;
+    };
+
+    const generateChattelsText = (chIds: string[], chSettings: ChattelsSettings | null) => {
+        if (!chSettings) return "";
+        // Chattels List
+        if (chIds.length > 0) {
+            const labels = chSettings.list
+                .filter(e => chIds.includes(e.id))
+                .map(e => e.label);
+            if (labels.length > 0) {
+                return "We have included in our valuation an allowance for " + labels.join(", ") + ".";
+            }
+        }
+        return "";
+    };
+
+    const toggleSelection = (listType: 'construct' | 'interior' | 'chattels', id: string) => {
+        if (listType === 'construct') {
+            const newList = selectedConstruct.includes(id)
+                ? selectedConstruct.filter(x => x !== id)
+                : [...selectedConstruct, id];
+            setSelectedConstruct(newList);
+            setConstructText(generateConstructText(newList, selectedInterior, constructData));
+        } else if (listType === 'interior') {
+            const newList = selectedInterior.includes(id)
+                ? selectedInterior.filter(x => x !== id)
+                : [...selectedInterior, id];
+            setSelectedInterior(newList);
+            setConstructText(generateConstructText(selectedConstruct, newList, constructData));
+        } else if (listType === 'chattels') {
+            const newList = selectedChattels.includes(id)
+                ? selectedChattels.filter(x => x !== id)
+                : [...selectedChattels, id];
+            setSelectedChattels(newList);
+            setChattelsText(generateChattelsText(newList, chattelsData));
+        }
+    };
+
+    const handleUpdateCCToReport = async () => {
+        if (!report || !user || !constructData || !chattelsData) return;
+
+        // This logic is tentative until defined
+        const sourceFields: { [key: string]: ReportField } = {};
+
+        // Find fields in report content that match the placeholders
+        const findFieldId = (ph: string) => {
+            if (!report.content) return null;
+
+            let foundId: string | null = null;
+            const traverse = (obj: any) => {
+                if (foundId) return;
+                if (!obj || typeof obj !== 'object') return;
+
+                if (obj.placeholder === ph && obj.id) {
+                    foundId = obj.id;
+                    return;
+                }
+
+                for (const key in obj) {
+                    traverse(obj[key]);
+                }
+            };
+
+            traverse(report.content);
+            return foundId;
+        };
+
+        if (constructData.replaceholder) {
+            const targetId = findFieldId(constructData.replaceholder) || 'construct_desc';
+            sourceFields[targetId] = {
+                id: targetId,
+                label: 'Construct Description',
+                placeholder: constructData.replaceholder,
+                value: constructText,
+                displayType: 'textarea',
+                type: 'string',
+                ifValidation: false
+            };
+        }
+        if (chattelsData.replaceholder) {
+            const targetId = findFieldId(chattelsData.replaceholder) || 'chattels_desc';
+            sourceFields[targetId] = {
+                id: targetId,
+                label: 'Chattels Description',
+                placeholder: chattelsData.replaceholder,
+                value: chattelsText,
+                displayType: 'textarea',
+                type: 'string',
+                ifValidation: false
+            };
+        }
+
+        const updatedReport = syncReportFields(report, sourceFields);
+
+        try {
+            const { metadata, baseInfo, content } = updatedReport;
+            await updateReport(user.uid, report.id, { metadata, baseInfo, content });
+            setReport(updatedReport);
+            alert("Construct/Chattels data updated to report!");
+        } catch (e) {
+            console.error(e);
+            alert("Failed to update report with CC data.");
+        }
+    };
+
+
     const handleLoadSwot = async () => {
         if (!user) return;
         setSwotLoading(true);
@@ -349,233 +502,378 @@ export default function PreprocessPage() {
                 <p className={styles.subtitle}>Initializing report and extracting data from files.</p>
             </div>
 
-            {/* Status Bar */}
-            <div className={styles.statusBar}>
-                {statusSteps.map(step => (
-                    <div key={step.id} className={styles.progressItem}>
-                        <div className={`${styles.progressIcon} ${step.status === 'done' ? styles.iconDone : step.status === 'doing' ? styles.iconDoing : styles.iconPending}`}>
-                            {step.status === 'done' && (
-                                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                            )}
-                        </div>
-                        <span style={{ fontWeight: step.status === 'pending' ? 'normal' : '600', color: step.status === 'pending' ? '#94a3b8' : '#334155' }}>
-                            {step.text}
-                        </span>
-                    </div>
-                ))}
+            {/* Tabs */}
+            <div className={styles.tabs}>
+                <button
+                    className={`${styles.tab} ${activeTab === 'ai-extract' ? styles.activeTab : ''}`}
+                    onClick={() => setActiveTab('ai-extract')}
+                >
+                    AI PDF Extract
+                </button>
+                <button
+                    className={`${styles.tab} ${activeTab === 'static-info' ? styles.activeTab : ''}`}
+                    onClick={() => setActiveTab('static-info')}
+                >
+                    Static Info
+                </button>
+                <button
+                    className={`${styles.tab} ${activeTab === 'swot' ? styles.activeTab : ''}`}
+                    onClick={() => setActiveTab('swot')}
+                >
+                    SWOT Data
+                </button>
+                <button
+                    className={`${styles.tab} ${activeTab === 'construct-chattels' ? styles.activeTab : ''}`}
+                    onClick={() => setActiveTab('construct-chattels')}
+                >
+                    Construct/Chattels
+                </button>
             </div>
 
             {initDone && report && (
-                <div className={styles.mainGrid}>
-                    {/* Files Column */}
-                    <div className={styles.card}>
-                        <h2 className={styles.cardTitle}>Source Files</h2>
-                        <div className={styles.fileItem}>
-                            <strong>Title:</strong> {report.files.title?.name || "N/A"}
-                        </div>
-                        <div className={styles.fileItem}>
-                            <strong>Brief:</strong> {report.files.brief?.name || "N/A"}
-                        </div>
-                        <div style={{ marginTop: 'auto' }}>
-                            <p className="text-xs text-gray-500 mb-2">
-                                AI will read these PDF/Doc files to extract data based on your "PDF Extract" Settings.
-                            </p>
-                            <button className={styles.extractBtn} onClick={handleAIExtract} disabled={isExtracting}>
-                                {isExtracting ? "Extracting..." : "AI Extract Data"}
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Extracted Data Editor */}
-                    <div className={styles.card} style={{ gridColumn: '2 / -1' }}>
-                        <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
-                            <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Extracted Data</h2>
-                            <button className={styles.primaryBtn} onClick={handleUpdateDatabase} disabled={extractedData.length === 0}>
-                                Update Report Database
-                            </button>
-                        </div>
-
-                        {extractedData.length === 0 ? (
-                            <div className="flex items-center justify-center h-40 text-gray-400">
-                                No data extracted yet. Click "AI Extract Data".
+                <div className={styles.tabContent}>
+                    {activeTab === 'ai-extract' && (
+                        <div className={styles.mainGrid}>
+                            {/* Files Column */}
+                            <div className={styles.card}>
+                                <h2 className={styles.cardTitle}>Source Files</h2>
+                                <div className={styles.fileItem}>
+                                    <strong>Title:</strong> {report.files.title?.name || "N/A"}
+                                </div>
+                                <div className={styles.fileItem}>
+                                    <strong>Brief:</strong> {report.files.brief?.name || "N/A"}
+                                </div>
+                                <div style={{ marginTop: 'auto' }}>
+                                    <p className="text-xs text-gray-500 mb-2">
+                                        AI will read these PDF/Doc files to extract data based on your "PDF Extract" Settings.
+                                    </p>
+                                    <button className={styles.extractBtn} onClick={handleAIExtract} disabled={isExtracting}>
+                                        {isExtracting ? "Extracting..." : "AI Extract Data"}
+                                    </button>
+                                </div>
                             </div>
-                        ) : (
-                            <div style={{ overflowX: 'auto' }}>
-                                <table className={styles.editorTable}>
-                                    <thead>
-                                        <tr>
-                                            <th>Label</th>
-                                            <th>Placeholder</th>
-                                            <th style={{ minWidth: '200px' }}>Value</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {extractedData.map((row, idx) => (
-                                            <tr key={idx}>
-                                                <td style={{ verticalAlign: 'top', paddingTop: '0.75rem' }}>{row.label}</td>
-                                                <td className="font-mono text-xs text-blue-600" style={{ verticalAlign: 'top', paddingTop: '0.75rem' }}>{row.placeholder}</td>
-                                                <td>
-                                                    {row.displayType === 'textarea' ? (
+
+                            {/* Extracted Data Editor */}
+                            <div className={styles.card}>
+                                <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
+                                    <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Extracted Data</h2>
+                                    <button className={styles.primaryBtn} onClick={handleUpdateDatabase} disabled={extractedData.length === 0}>
+                                        Update Report Database
+                                    </button>
+                                </div>
+
+                                {extractedData.length === 0 ? (
+                                    <div className="flex items-center justify-center h-40 text-gray-400">
+                                        No data extracted yet. Click "AI Extract Data".
+                                    </div>
+                                ) : (
+                                    <div style={{ overflowX: 'auto' }}>
+                                        <table className={styles.editorTable}>
+                                            <thead>
+                                                <tr>
+                                                    <th>Label</th>
+                                                    <th>Placeholder</th>
+                                                    <th style={{ minWidth: '200px' }}>Value</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {extractedData.map((row, idx) => (
+                                                    <tr key={idx}>
+                                                        <td style={{ verticalAlign: 'top', paddingTop: '0.75rem' }}>{row.label}</td>
+                                                        <td className="font-mono text-xs text-blue-600" style={{ verticalAlign: 'top', paddingTop: '0.75rem' }}>{row.placeholder}</td>
+                                                        <td>
+                                                            {row.displayType === 'textarea' ? (
+                                                                <textarea
+                                                                    className={styles.textarea}
+                                                                    rows={3}
+                                                                    value={extractValues[idx] || ""}
+                                                                    onChange={(e) => setExtractValues(prev => ({ ...prev, [idx]: e.target.value }))}
+                                                                />
+                                                            ) : row.displayType === 'date' ? (
+                                                                <input
+                                                                    type="date"
+                                                                    className={styles.input}
+                                                                    value={formatDateForInput(extractValues[idx] || "")}
+                                                                    onChange={(e) => {
+                                                                        const val = formatDateForStorage(e.target.value);
+                                                                        setExtractValues(prev => ({ ...prev, [idx]: val }))
+                                                                    }}
+                                                                />
+                                                            ) : (
+                                                                <input
+                                                                    type="text"
+                                                                    className={styles.input}
+                                                                    value={extractValues[idx] || ""}
+                                                                    onChange={(e) => setExtractValues(prev => ({ ...prev, [idx]: e.target.value }))}
+                                                                />
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'static-info' && (
+                        <div className={styles.card}>
+                            <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
+                                <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Static Information</h2>
+                                <div style={{ display: 'flex', gap: '1rem' }}>
+                                    <button className={styles.secondaryBtn} onClick={handleLoadStatic} disabled={staticLoading}>
+                                        {staticLoading ? "Loading..." : "Load From Settings"}
+                                    </button>
+                                    <button className={styles.primaryBtn} onClick={handleUpdateStaticToReport} disabled={Object.keys(staticData).length === 0}>
+                                        Update to Report
+                                    </button>
+                                </div>
+                            </div>
+
+                            {Object.keys(staticData).length === 0 ? (
+                                <div className="flex items-center justify-center h-20 text-gray-400">
+                                    Click "Load From Settings" to fetch your static content.
+                                </div>
+                            ) : (
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table className={`${styles.editorTable} ${styles.staticTable}`}>
+                                        <thead>
+                                            <tr>
+                                                <th>Label</th>
+                                                <th>Placeholder</th>
+                                                <th>Value</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {[
+                                                { key: 'nzEconomyOverview', label: 'NZ Economy', placeholder: (staticData as any).nzEconomyOverview_ph },
+                                                { key: 'globalEconomyOverview', label: 'Global Econ', placeholder: (staticData as any).globalEconomyOverview_ph },
+                                                { key: 'residentialMarket', label: 'Res. Market', placeholder: (staticData as any).residentialMarket_ph },
+                                                { key: 'recentMarketDirection', label: 'Mkt Direction', placeholder: (staticData as any).recentMarketDirection_ph },
+                                                { key: 'marketVolatility', label: 'Mkt Volatility', placeholder: (staticData as any).marketVolatility_ph },
+                                                { key: 'localEconomyImpact', label: 'Local Econ', placeholder: (staticData as any).localEconomyImpact_ph }
+                                            ].map((field) => (
+                                                <tr key={field.key}>
+                                                    <td style={{ verticalAlign: 'top', paddingTop: '0.75rem' }}>{field.label}</td>
+                                                    <td className="font-mono text-xs text-blue-600" style={{ verticalAlign: 'top', paddingTop: '0.75rem' }}>
+                                                        {field.placeholder || <span className="text-gray-400 italic">No placeholder</span>}
+                                                    </td>
+                                                    <td>
                                                         <textarea
                                                             className={styles.textarea}
-                                                            rows={3}
-                                                            value={extractValues[idx] || ""}
-                                                            onChange={(e) => setExtractValues(prev => ({ ...prev, [idx]: e.target.value }))}
+                                                            rows={4}
+                                                            value={(staticData as any)[field.key] || ""}
+                                                            onChange={(e) => setStaticData(prev => ({ ...prev, [field.key]: e.target.value }))}
                                                         />
-                                                    ) : row.displayType === 'date' ? (
-                                                        <input
-                                                            type="date"
-                                                            className={styles.input}
-                                                            value={formatDateForInput(extractValues[idx] || "")}
-                                                            onChange={(e) => {
-                                                                const val = formatDateForStorage(e.target.value);
-                                                                setExtractValues(prev => ({ ...prev, [idx]: val }))
-                                                            }}
-                                                        />
-                                                    ) : (
-                                                        <input
-                                                            type="text"
-                                                            className={styles.input}
-                                                            value={extractValues[idx] || ""}
-                                                            onChange={(e) => setExtractValues(prev => ({ ...prev, [idx]: e.target.value }))}
-                                                        />
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Static Data Editor */}
-                    <div className={styles.card} style={{ gridColumn: '2 / -1' }}>
-                        <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
-                            <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Static Information</h2>
-                            <div style={{ display: 'flex', gap: '1rem' }}>
-                                <button className={styles.secondaryBtn} onClick={handleLoadStatic} disabled={staticLoading}>
-                                    {staticLoading ? "Loading..." : "Load From Settings"}
-                                </button>
-                                <button className={styles.primaryBtn} onClick={handleUpdateStaticToReport} disabled={Object.keys(staticData).length === 0}>
-                                    Update to Report
-                                </button>
-                            </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
+                    )}
 
-                        {Object.keys(staticData).length === 0 ? (
-                            <div className="flex items-center justify-center h-20 text-gray-400">
-                                Click "Load From Settings" to fetch your static content.
+                    {activeTab === 'swot' && (
+                        <div className={styles.card}>
+                            <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
+                                <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>SWOT Data (Multi-Choice)</h2>
+                                <div style={{ display: 'flex', gap: '1rem' }}>
+                                    <button className={styles.secondaryBtn} onClick={handleLoadSwot} disabled={swotLoading}>
+                                        {swotLoading ? "Loading..." : "Load From Settings"}
+                                    </button>
+                                    <button className={styles.primaryBtn} onClick={handleUpdateSwotToReport} disabled={swotCards.length === 0}>
+                                        Update to Report
+                                    </button>
+                                </div>
                             </div>
-                        ) : (
-                            <div style={{ overflowX: 'auto' }}>
-                                <table className={styles.editorTable}>
-                                    <thead>
-                                        <tr>
-                                            <th>Label</th>
-                                            <th>Placeholder</th>
-                                            <th style={{ minWidth: '400px' }}>Value</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {[
-                                            { key: 'nzEconomyOverview', label: 'NZ Economy Overview', placeholder: (staticData as any).nzEconomyOverview_ph },
-                                            { key: 'globalEconomyOverview', label: 'Global Economy Overview', placeholder: (staticData as any).globalEconomyOverview_ph },
-                                            { key: 'residentialMarket', label: 'Residential Market', placeholder: (staticData as any).residentialMarket_ph },
-                                            { key: 'recentMarketDirection', label: 'Recent Market Direction', placeholder: (staticData as any).recentMarketDirection_ph },
-                                            { key: 'marketVolatility', label: 'Market Volatility', placeholder: (staticData as any).marketVolatility_ph },
-                                            { key: 'localEconomyImpact', label: 'Local Economy Impact', placeholder: (staticData as any).localEconomyImpact_ph }
-                                        ].map((field) => (
-                                            <tr key={field.key}>
-                                                <td style={{ verticalAlign: 'top', paddingTop: '0.75rem' }}>{field.label}</td>
-                                                <td className="font-mono text-xs text-blue-600" style={{ verticalAlign: 'top', paddingTop: '0.75rem' }}>
-                                                    {field.placeholder || <span className="text-gray-400 italic">No placeholder</span>}
-                                                </td>
-                                                <td>
-                                                    <textarea
-                                                        className={styles.textarea}
-                                                        rows={4}
-                                                        value={(staticData as any)[field.key] || ""}
-                                                        onChange={(e) => setStaticData(prev => ({ ...prev, [field.key]: e.target.value }))}
-                                                    />
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </div>
 
-                    {/* SWOT Data Editor */}
-                    <div className={styles.card} style={{ gridColumn: '2 / -1' }}>
-                        <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
-                            <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>SWOT Data (Multi-Choice)</h2>
-                            <div style={{ display: 'flex', gap: '1rem' }}>
-                                <button className={styles.secondaryBtn} onClick={handleLoadSwot} disabled={swotLoading}>
-                                    {swotLoading ? "Loading..." : "Load From Settings"}
-                                </button>
-                                <button className={styles.primaryBtn} onClick={handleUpdateSwotToReport} disabled={swotCards.length === 0}>
-                                    Update to Report
-                                </button>
-                            </div>
-                        </div>
+                            {swotCards.length === 0 ? (
+                                <div className="flex items-center justify-center h-20 text-gray-400">
+                                    Click "Load From Settings" to fetch your multi-choice content (e.g., SWOT).
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {swotCards.map((card) => {
+                                        const selection = swotSelections[card.id] || { selectedOptions: [], textValue: "" };
 
-                        {swotCards.length === 0 ? (
-                            <div className="flex items-center justify-center h-20 text-gray-400">
-                                Click "Load From Settings" to fetch your multi-choice content (e.g., SWOT).
-                            </div>
-                        ) : (
-                            <div className="space-y-6">
-                                {swotCards.map((card) => {
-                                    const selection = swotSelections[card.id] || { selectedOptions: [], textValue: "" };
+                                        return (
+                                            <div key={card.id} className={styles.swotCard}>
+                                                <div className={styles.swotHeader}>
+                                                    <span className={styles.swotTitle}>{card.name}</span>
+                                                    <span className={styles.swotPlaceholder}>{card.placeholder}</span>
+                                                </div>
 
-                                    return (
-                                        <div key={card.id} className="border rounded p-4 bg-gray-50">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <h3 className="font-semibold text-lg text-gray-800">{card.name}</h3>
-                                                <span className="font-mono text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                                                    {card.placeholder}
-                                                </span>
-                                            </div>
+                                                <div className={styles.swotBody}>
+                                                    {/* Options Column */}
+                                                    <div className={styles.swotLeft}>
+                                                        <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Available Options</h4>
+                                                        <div className="space-y-1">
+                                                            {card.options.map(option => (
+                                                                <label key={option.id} className="flex items-start gap-2 cursor-pointer p-2 hover:bg-white rounded transition-colors text-sm">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        className="mt-1"
+                                                                        checked={selection.selectedOptions.includes(option.value)}
+                                                                        onChange={() => handleOptionToggle(card.id, option.value)}
+                                                                    />
+                                                                    <span className="text-gray-700">{option.label}</span>
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                    </div>
 
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                {/* Options Column */}
-                                                <div>
-                                                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Available Options</h4>
-                                                    <div className="space-y-2">
-                                                        {card.options.map(option => (
-                                                            <label key={option.id} className="flex items-start gap-2 cursor-pointer p-2 hover:bg-white rounded transition-colors">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    className="mt-1"
-                                                                    checked={selection.selectedOptions.includes(option.value)}
-                                                                    onChange={() => handleOptionToggle(card.id, option.value)}
-                                                                />
-                                                                <span className="text-sm text-gray-700">{option.label}</span>
-                                                            </label>
-                                                        ))}
+                                                    {/* Text Area Column */}
+                                                    <div className={styles.swotRight}>
+                                                        <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Selected Text (Editable)</h4>
+                                                        <textarea
+                                                            className={styles.textarea}
+                                                            style={{ height: '100%', minHeight: '200px' }}
+                                                            value={selection.textValue}
+                                                            onChange={(e) => handleSwotTextChange(card.id, e.target.value)}
+                                                            placeholder="Select options from the left or type here..."
+                                                        />
                                                     </div>
                                                 </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
-                                                {/* Text Area Column */}
-                                                <div>
-                                                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Selected Text (Editable)</h4>
-                                                    <textarea
-                                                        className={styles.textarea}
-                                                        rows={6}
-                                                        value={selection.textValue}
-                                                        onChange={(e) => handleSwotTextChange(card.id, e.target.value)}
-                                                        placeholder="Select options from the left or type here..."
-                                                    />
+                    {activeTab === 'construct-chattels' && (
+                        <div className={styles.card}>
+                            <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
+                                <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Construct / Chattels Data</h2>
+                                <div style={{ display: 'flex', gap: '1rem' }}>
+                                    <button className={styles.secondaryBtn} onClick={handleLoadConstructChattels} disabled={ccLoading}>
+                                        {ccLoading ? "Loading..." : "Load From Settings"}
+                                    </button>
+                                    <button className={styles.primaryBtn} onClick={handleUpdateCCToReport} disabled={!constructData && !chattelsData}>
+                                        Update to Report
+                                    </button>
+                                </div>
+                            </div>
+
+                            {!constructData && !chattelsData ? (
+                                <div className="flex items-center justify-center h-20 text-gray-400">
+                                    Click "Load From Settings" to fetch Construct & Chattels data.
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {/* Construct Card */}
+                                    <div className="border rounded p-6 bg-white shadow-sm">
+                                        <div className={styles.ccHeaderRow}>
+                                            <h3 className={styles.ccTitle}>Construct Card</h3>
+                                        </div>
+
+                                        <div className={styles.ccGrid}>
+                                            {/* Left Column: Construct Element List */}
+                                            <div className={styles.ccColumnLeft}>
+                                                <div className={styles.ccSubHeader}>
+                                                    <span className={styles.ccLabel}>Construct Element</span>
+                                                </div>
+                                                <div className={styles.optionList}>
+                                                    {constructData?.elements?.map(opt => (
+                                                        <label key={opt.id} className="flex items-start gap-2 cursor-pointer p-1 hover:bg-gray-100 rounded transition-colors text-sm">
+                                                            <input
+                                                                type="checkbox"
+                                                                className="mt-1"
+                                                                checked={selectedConstruct.includes(opt.id)}
+                                                                onChange={() => toggleSelection('construct', opt.id)}
+                                                            />
+                                                            <span className="text-gray-700">{opt.label}</span>
+                                                        </label>
+                                                    ))}
                                                 </div>
                                             </div>
+
+                                            {/* Right Column: Interior + Description */}
+                                            <div className={styles.ccColumnRight}>
+                                                <div className={styles.ccSubHeader}>
+                                                    <span className={styles.ccLabel}>Interior Element</span>
+                                                </div>
+                                                <div className={styles.optionList} style={{ marginBottom: '1.5rem' }}>
+                                                    {constructData?.interiorElements?.map(opt => (
+                                                        <label key={opt.id} className="flex items-start gap-2 cursor-pointer p-1 hover:bg-gray-50 rounded transition-colors text-sm">
+                                                            <input
+                                                                type="checkbox"
+                                                                className="mt-1"
+                                                                checked={selectedInterior.includes(opt.id)}
+                                                                onChange={() => toggleSelection('interior', opt.id)}
+                                                            />
+                                                            <span className="text-gray-700">{opt.label}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                                    <h4 className="text-xs font-semibold text-gray-500 uppercase">Construct Description</h4>
+                                                    <span className={styles.swotPlaceholder}>{constructData?.replaceholder}</span>
+                                                </div>
+                                                <textarea
+                                                    className={styles.textarea}
+                                                    rows={8}
+                                                    value={constructText}
+                                                    onChange={(e) => setConstructText(e.target.value)}
+                                                    placeholder="Text will be generated here..."
+                                                />
+                                            </div>
                                         </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
+                                    </div>
+
+                                    {/* Chattels Card */}
+                                    <div className="border rounded p-6 bg-white shadow-sm">
+                                        <div className={styles.ccHeaderRow}>
+                                            <h3 className={styles.ccTitle}>Chattels Card</h3>
+                                        </div>
+
+                                        <div className={styles.ccGrid}>
+                                            {/* Left Column: Chattels List */}
+                                            <div className={styles.ccColumnLeft}>
+                                                <div className={styles.ccSubHeader}>
+                                                    <span className={styles.ccLabel}>Chattels List</span>
+                                                </div>
+                                                <div className={styles.optionList}>
+                                                    {chattelsData?.list?.map(opt => (
+                                                        <label key={opt.id} className="flex items-start gap-2 cursor-pointer p-1 hover:bg-gray-100 rounded transition-colors text-sm">
+                                                            <input
+                                                                type="checkbox"
+                                                                className="mt-1"
+                                                                checked={selectedChattels.includes(opt.id)}
+                                                                onChange={() => toggleSelection('chattels', opt.id)}
+                                                            />
+                                                            <span className="text-gray-700">{opt.label}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Right Column: Description Only */}
+                                            <div className={styles.ccColumnRight}>
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                                    <h4 className="text-xs font-semibold text-gray-500 uppercase">Chattels Description</h4>
+                                                    <span className={styles.swotPlaceholder}>{chattelsData?.replaceholder}</span>
+                                                </div>
+                                                <textarea
+                                                    className={styles.textarea}
+                                                    rows={8}
+                                                    value={chattelsText}
+                                                    onChange={(e) => setChattelsText(e.target.value)}
+                                                    placeholder="Text will be generated here..."
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Footer Actions */}
                     <div className={styles.footer}>

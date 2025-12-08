@@ -204,6 +204,10 @@ export default function SettingsPage() {
                         <span className={styles.itemLabel}>Preset Multi-Choice Content Settings</span>
                         <ArrowIcon className={styles.arrowIcon} />
                     </Link>
+                    <Link href="/settings/construct-chattels" className={styles.settingsItem}>
+                        <span className={styles.itemLabel}>Construct / Chattels Settings</span>
+                        <ArrowIcon className={styles.arrowIcon} />
+                    </Link>
                     <Link href="/settings/report/structure" className={styles.settingsItem}>
                         <span className={styles.itemLabel}>Report Structure Settings</span>
                         <ArrowIcon className={styles.arrowIcon} />
