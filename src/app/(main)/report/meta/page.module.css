@@ -53,7 +53,34 @@
     font-weight: 500;
     color: var(--foreground);
     font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
+
+.placeholderIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+    color: #6366f1;
+    background-color: #eef2ff;
+    border: 1px solid #c7d2fe;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.placeholderIcon:hover {
+    background-color: #ddd6fe;
+    border-color: #a78bfa;
+    transform: scale(1.1);
+}
+
 
 .input,
 .textarea,

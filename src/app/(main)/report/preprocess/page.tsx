@@ -542,7 +542,32 @@ export default function PreprocessPage() {
         swotCards.forEach((card, idx) => {
             const selection = swotSelections[card.id];
             if (selection && card.placeholder) {
-                sourceFields[`swot_${idx}`] = { id: `swot_${idx}`, label: card.name, placeholder: card.placeholder, value: selection.textValue, displayType: 'textarea', type: 'string', ifValidation: false };
+                // IMPORTANT: Normalize line breaks to match Address Multi-line format
+                // Convert all line breaks to \n (LF) for consistency
+                let normalizedValue = selection.textValue || "";
+
+                // Log original value for debugging
+                console.log(`[SWOT Debug] Card: ${card.name}`);
+                console.log(`[SWOT Debug] Original value:`, JSON.stringify(normalizedValue));
+                console.log(`[SWOT Debug] Has \\r\\n:`, normalizedValue.includes('\r\n'));
+                console.log(`[SWOT Debug] Has \\n:`, normalizedValue.includes('\n'));
+                console.log(`[SWOT Debug] Has \\r:`, normalizedValue.includes('\r'));
+
+                // Normalize: Convert all line breaks to \n
+                normalizedValue = normalizedValue.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+                // Log normalized value
+                console.log(`[SWOT Debug] Normalized value:`, JSON.stringify(normalizedValue));
+
+                sourceFields[`swot_${idx}`] = {
+                    id: `swot_${idx}`,
+                    label: card.name,
+                    placeholder: card.placeholder,
+                    value: normalizedValue,  // Use normalized value
+                    displayType: 'textarea',
+                    type: 'string',
+                    ifValidation: false
+                };
             }
         });
         const updatedReport = syncReportFields(report, sourceFields);

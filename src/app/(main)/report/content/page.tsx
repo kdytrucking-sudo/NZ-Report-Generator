@@ -219,7 +219,17 @@ export default function ReportContentPage() {
                 return (
                     <div key={key} className={styles.field}>
                         <label htmlFor={`${sectionId}-${key}`} className={styles.label}>
-                            {field.label} {field.ifValidation && <span className="text-red-500">*</span>}
+                            <span>
+                                {field.label} {field.ifValidation && <span className="text-red-500">*</span>}
+                            </span>
+                            {field.placeholder && (
+                                <span
+                                    className={styles.placeholderIcon}
+                                    title={field.placeholder}
+                                >
+                                    P
+                                </span>
+                            )}
                         </label>
                         {renderInput(sectionId, key, field)}
                     </div>

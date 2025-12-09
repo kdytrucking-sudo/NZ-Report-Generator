@@ -79,6 +79,18 @@ export async function POST(req: NextRequest) {
             Object.values(fields).forEach((field: any) => {
                 if (field.placeholder) {
                     let val = field.value || "";
+
+                    // Debug logging for line breaks
+                    if (val && typeof val === 'string' && val.length > 0) {
+                        console.log(`\n[Debug] Field: ${field.label || field.placeholder}`);
+                        console.log(`[Debug] Placeholder: ${field.placeholder}`);
+                        console.log(`[Debug] Value length: ${val.length}`);
+                        console.log(`[Debug] Has \\r\\n: ${val.includes('\r\n')}`);
+                        console.log(`[Debug] Has \\n: ${val.includes('\n')}`);
+                        console.log(`[Debug] Has \\r: ${val.includes('\r')}`);
+                        console.log(`[Debug] First 100 chars:`, JSON.stringify(val.substring(0, 100)));
+                    }
+
                     // Handle Dates (if displayType is date or value looks like date)
                     if (field.displayType === 'date' || (val && typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}$/))) {
                         val = formatDateValue(val);
@@ -106,25 +118,79 @@ export async function POST(req: NextRequest) {
         if (zip.file(docXmlPath)) {
             let docXml = await zip.file(docXmlPath)!.async("string");
 
+            // NEW APPROACH: Don't modify the XML structure at all
+            // Instead, handle placeholders that might be split by XML tags
+
             // Perform Replacements
-            // We iterate over keys to replace
             Object.keys(replacements).forEach(key => {
                 const value = replacements[key];
 
                 // 1. Escape XML in value
                 let safeValue = escapeXml(value);
 
-                // 2. Handle Newlines: Replace \n with Hard Return (Paragraph Break)
-                // We close the current Text/Run/Paragraph, start a new Paragraph/Run/Text.
-                // This prevents "soft return" justification issues.
-                safeValue = safeValue.replace(/\r\n/g, "\n").replace(/\n/g, "</w:t></w:r></w:p><w:p><w:r><w:t>");
+                // 2. Handle Newlines: Use simple line break
+                safeValue = safeValue.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
-                // 3. Regex Replace
-                // Escape key for regex (e.g. [ becomes \[)
+                // Replace newlines with Word line break tag
+                if (safeValue.includes("\n")) {
+                    safeValue = safeValue.replace(/\n/g, "<w:br/>");
+                }
+
+                // 3. Try multiple replacement strategies
+
+                // Strategy 1: Direct replacement (for placeholders that aren't split)
                 const escapedKey = key.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-                const regex = new RegExp(escapedKey, "g");
+                let regex = new RegExp(escapedKey, "g");
+                let matches = docXml.match(regex);
+                let replaced = false;
 
-                docXml = docXml.replace(regex, safeValue);
+                if (matches && matches.length > 0) {
+                    docXml = docXml.replace(regex, safeValue);
+                    replaced = true;
+                    console.log(`✅ Direct replacement: "${key}" ${matches.length} time(s)`);
+                } else {
+                    // Strategy 2: Handle split placeholders
+                    // Create a regex that allows XML tags between characters
+                    // For example: [Replace_Address] might be split as:
+                    // <w:t>[Replace_</w:t><w:t>Address]</w:t>
+
+                    // Build a flexible regex that allows tags between each character
+                    const flexiblePattern = key
+                        .split('')
+                        .map(char => {
+                            // Escape special regex characters
+                            const escaped = char.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                            // Allow any XML tags between characters
+                            return escaped;
+                        })
+                        .join('(?:<[^>]+>)*'); // Allow zero or more XML tags between each character
+
+                    const flexibleRegex = new RegExp(flexiblePattern, 'g');
+                    const flexibleMatches = docXml.match(flexibleRegex);
+
+                    if (flexibleMatches && flexibleMatches.length > 0) {
+                        // Replace each match
+                        flexibleMatches.forEach(match => {
+                            // Extract just the text content from the match (removing XML tags)
+                            const textOnly = match.replace(/<[^>]+>/g, '');
+
+                            // Verify this is actually our placeholder
+                            if (textOnly === key) {
+                                // Replace the entire match (including XML tags) with our value wrapped in proper tags
+                                docXml = docXml.replace(match, `<w:t xml:space="preserve">${safeValue}</w:t>`);
+                                replaced = true;
+                            }
+                        });
+
+                        if (replaced) {
+                            console.log(`✅ Flexible replacement: "${key}" ${flexibleMatches.length} time(s)`);
+                        }
+                    }
+                }
+
+                if (!replaced) {
+                    console.warn(`⚠️  Placeholder "${key}" not found in document`);
+                }
             });
 
             // Write back to zip
@@ -132,11 +198,6 @@ export async function POST(req: NextRequest) {
         }
 
         // 6. Generate New buffer
-        const generatedBuffer = await zip.generateAsync({ type: "blob" }); // client SDK expects Blob/File for uploadBytes
-        // Wait, 'uploadBytes' in Node env might expect Uint8Array or ArrayBuffer if 'Blob' is not fully polyfilled? 
-        // Next.js runtime has Blob. Let's try.
-        // Actually generateAsync({type: 'arraybuffer'}) is safer for 'uploadBytes' or just pass Buffer.
-        // Let's use arraybuffer.
         const generatedArrayBuffer = await zip.generateAsync({ type: "arraybuffer" });
 
         // 7. Upload Generated Report
