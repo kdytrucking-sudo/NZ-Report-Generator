@@ -7,6 +7,8 @@ import { auth } from "@/lib/firebase";
 import { getTemplates, uploadTemplate, deleteTemplate, ReportTemplate } from "@/lib/firestore-templates";
 import styles from "./page.module.css";
 import { Timestamp } from "firebase/firestore";
+import { useCustomAlert } from "@/components/CustomAlert";
+import { useCustomConfirm } from "@/components/CustomConfirm";
 
 // Icons
 const UploadIcon = () => (
@@ -43,6 +45,8 @@ const TrashIcon = () => (
 );
 
 export default function TemplatesPage() {
+    const { showAlert, AlertComponent } = useCustomAlert();
+    const { showConfirm, ConfirmComponent } = useCustomConfirm();
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -82,7 +86,7 @@ export default function TemplatesPage() {
         const validExtensions = ['.doc', '.docx', '.dot', '.dotx'];
         const extension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
         if (!validExtensions.includes(extension)) {
-            alert("Invalid file type. Please upload a Word document (.doc, .docx, .dot, .dotx).");
+            showAlert("Invalid file type. Please upload a Word document (.doc, .docx, .dot, .dotx).");
             e.target.value = ""; // Reset
             return;
         }
@@ -90,7 +94,7 @@ export default function TemplatesPage() {
         // Check for duplicate filename
         const duplicate = templates.find(t => t.name === file.name);
         if (duplicate) {
-            alert(`A template named "${file.name}" already exists.\nPlease rename your file locally before uploading to prevent overwriting the existing template.`);
+            showAlert(`A template named "${file.name}" already exists.\nPlease rename your file locally before uploading to prevent overwriting the existing template.`);
             e.target.value = ""; // Reset
             return;
         }
@@ -101,7 +105,7 @@ export default function TemplatesPage() {
             await loadTemplates(user.uid); // Refresh
         } catch (error) {
             console.error("Upload failed", error);
-            alert("Failed to upload template.");
+            showAlert("Failed to upload template.");
         } finally {
             setUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = "";
@@ -109,7 +113,8 @@ export default function TemplatesPage() {
     };
 
     const handleDelete = async (template: ReportTemplate) => {
-        if (!confirm(`Are you sure you want to delete "${template.name}"?`)) return;
+        const confirmed = await showConfirm(`Are you sure you want to delete "${template.name}"?`);
+        if (!confirmed) return;
 
         try {
             await deleteTemplate(user.uid, template.id, template.storagePath);
@@ -117,7 +122,7 @@ export default function TemplatesPage() {
             await loadTemplates(user.uid);
         } catch (error) {
             console.error("Delete failed", error);
-            alert("Failed to delete template.");
+            showAlert("Failed to delete template.");
         }
     };
 
@@ -133,80 +138,85 @@ export default function TemplatesPage() {
     }
 
     return (
-        <div className={styles.container}>
-            <div className={styles.header}>
-                <div>
-                    <h1 className={styles.title}>Manage Templates</h1>
-                    <p className={styles.description}>Upload and manage your .docx report templates. These are saved on the server for global use.</p>
-                </div>
-                <button
-                    className={styles.uploadBtn}
-                    onClick={handleUploadClick}
-                    disabled={uploading}
-                >
-                    <UploadIcon />
-                    {uploading ? "Uploading..." : "Upload .docx Template"}
-                </button>
-                <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    accept=".doc,.docx,.dot,.dotx"
-                    style={{ display: 'none' }}
-                />
-            </div>
-
-            <div className={styles.listContainer}>
-                <div className={styles.listHeader}>
+        <>
+            {AlertComponent}
+            {ConfirmComponent}
+            <div className={styles.container}>
+                <div className={styles.header}>
                     <div>
-                        <h2 className={styles.listTitle}>Your Templates</h2>
-                        <p className={styles.listSubtitle}>These templates will be available when generating a new report.</p>
+                        <h1 className={styles.title}>Manage Templates</h1>
+                        <p className={styles.description}>Upload and manage your .docx report templates. These are saved on the server for global use.</p>
+                    </div>
+                    <button
+                        className={styles.uploadBtn}
+                        onClick={handleUploadClick}
+                        disabled={uploading}
+                    >
+                        <UploadIcon />
+                        {uploading ? "Uploading..." : "Upload .docx Template"}
+                    </button>
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        accept=".doc,.docx,.dot,.dotx"
+                        style={{ display: 'none' }}
+                    />
+                </div>
+
+                <div className={styles.listContainer}>
+                    <div className={styles.listHeader}>
+                        <div>
+                            <h2 className={styles.listTitle}>Your Templates</h2>
+                            <p className={styles.listSubtitle}>These templates will be available when generating a new report.</p>
+                        </div>
+                    </div>
+
+                    <div className={styles.tableHeader}>
+                        <span>Template Name</span>
+                        <span>Upload Date</span>
+                        <span style={{ textAlign: 'right' }}>Actions</span>
+                    </div>
+
+                    <div className={styles.list}>
+                        {templates.length === 0 ? (
+                            <div className="p-8 text-center text-gray-500">
+                                No templates found. Upload one to get started.
+                            </div>
+                        ) : (
+                            templates.map((template) => (
+                                <div key={template.id} className={styles.listItem}>
+                                    <div className={styles.itemInfo}>
+                                        <div className={styles.fileIcon}><FileIcon /></div>
+                                        <span className={styles.itemName} title={template.name}>{template.name}</span>
+                                    </div>
+                                    <span className={styles.itemDate}>{formatDate(template.createdAt)}</span>
+                                    <div className={styles.actions}>
+                                        <a
+                                            href={template.downloadUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className={`${styles.iconBtn} ${styles.downloadBtn}`}
+                                            title="Download"
+                                            download // Hint to browser
+                                        >
+                                            <DownloadIcon />
+                                        </a>
+                                        <button
+                                            className={`${styles.iconBtn} ${styles.deleteBtn}`}
+                                            onClick={() => handleDelete(template)}
+                                            title="Delete"
+                                        >
+                                            <TrashIcon />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
-
-                <div className={styles.tableHeader}>
-                    <span>Template Name</span>
-                    <span>Upload Date</span>
-                    <span style={{ textAlign: 'right' }}>Actions</span>
-                </div>
-
-                <div className={styles.list}>
-                    {templates.length === 0 ? (
-                        <div className="p-8 text-center text-gray-500">
-                            No templates found. Upload one to get started.
-                        </div>
-                    ) : (
-                        templates.map((template) => (
-                            <div key={template.id} className={styles.listItem}>
-                                <div className={styles.itemInfo}>
-                                    <div className={styles.fileIcon}><FileIcon /></div>
-                                    <span className={styles.itemName} title={template.name}>{template.name}</span>
-                                </div>
-                                <span className={styles.itemDate}>{formatDate(template.createdAt)}</span>
-                                <div className={styles.actions}>
-                                    <a
-                                        href={template.downloadUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className={`${styles.iconBtn} ${styles.downloadBtn}`}
-                                        title="Download"
-                                        download // Hint to browser
-                                    >
-                                        <DownloadIcon />
-                                    </a>
-                                    <button
-                                        className={`${styles.iconBtn} ${styles.deleteBtn}`}
-                                        onClick={() => handleDelete(template)}
-                                        title="Delete"
-                                    >
-                                        <TrashIcon />
-                                    </button>
-                                </div>
-                            </div>
-                        ))
-                    )}
-                </div>
             </div>
-        </div>
+
+        </>
     );
 }

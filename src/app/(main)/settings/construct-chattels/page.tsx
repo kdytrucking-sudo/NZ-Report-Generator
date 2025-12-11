@@ -14,6 +14,7 @@ import {
     ConstructOption
 } from "@/lib/firestore-construct-chattels";
 import styles from "./page.module.css";
+import { useCustomAlert } from "@/components/CustomAlert";
 
 const TrashIcon = () => (
     <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -30,6 +31,7 @@ const PlusIcon = () => (
 );
 
 export default function ConstructChattelsPage() {
+    const { showAlert, AlertComponent } = useCustomAlert();
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -90,10 +92,10 @@ export default function ConstructChattelsPage() {
         if (!user) return;
         try {
             await saveConstructSettings(user.uid, constructSettings);
-            alert("Construct settings saved!");
+            showAlert("Construct settings saved!");
         } catch (e) {
             console.error(e);
-            alert("Error saving construct settings");
+            showAlert("Error saving construct settings");
         }
     };
 
@@ -122,10 +124,10 @@ export default function ConstructChattelsPage() {
         if (!user) return;
         try {
             await saveChattelsSettings(user.uid, chattelsSettings);
-            alert("Chattels settings saved!");
+            showAlert("Chattels settings saved!");
         } catch (e) {
             console.error(e);
-            alert("Error saving chattels settings");
+            showAlert("Error saving chattels settings");
         }
     };
 
@@ -134,149 +136,153 @@ export default function ConstructChattelsPage() {
     }
 
     return (
-        <div className={styles.container}>
-            <div className={styles.header}>
-                <div>
-                    <h1 className={styles.title}>Construct/Chattels</h1>
-                    <p className={styles.description}>Select options to build the construction and chattels description for the valuation report.</p>
-                </div>
-            </div>
-
-            <div className={styles.cardList}>
-                <div className={styles.card}>
-                    <div className={styles.cardHeaderRow}>
-                        <div className={styles.cardTitle}>Construct Card</div>
-                        <div className={styles.headerInputGroup}>
-                            <label className={styles.headerLabel}>Placeholder:</label>
-                            <input
-                                className={styles.coloredInput}
-                                value={constructSettings.replaceholder || ""}
-                                onChange={(e) => setConstructSettings({ ...constructSettings, replaceholder: e.target.value })}
-                                placeholder="Alternative placeholder..."
-                            />
-                        </div>
-                    </div>
-
-                    <div className={styles.cardContent}>
-                        {/* Construct Element */}
-                        <div className={styles.column}>
-                            <div className={styles.columnHeader}>Construct Element</div>
-                            <div className={styles.inputList}>
-                                {constructSettings.elements.map((item, idx) => (
-                                    <div key={item.id} className={styles.inputRow}>
-                                        <input
-                                            className={styles.input}
-                                            value={item.label}
-                                            onChange={(e) => handleConstructChange('elements', idx, e.target.value)}
-                                            placeholder="Item name..."
-                                        />
-                                        <button className={styles.deleteBtn} onClick={() => handleConstructRemove('elements', idx)}>
-                                            <TrashIcon />
-                                        </button>
-                                    </div>
-                                ))}
-                                <button className={styles.addBtn} onClick={() => handleConstructAdd('elements')}>
-                                    <PlusIcon /> Add Item
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Interior Element */}
-                        <div className={styles.column}>
-                            <div className={styles.columnHeader}>Interior Element</div>
-                            <div className={styles.inputList}>
-                                {constructSettings.interiorElements.map((item, idx) => (
-                                    <div key={item.id} className={styles.inputRow}>
-                                        <input
-                                            className={styles.input}
-                                            value={item.label}
-                                            onChange={(e) => handleConstructChange('interiorElements', idx, e.target.value)}
-                                            placeholder="Item name..."
-                                        />
-                                        <button className={styles.deleteBtn} onClick={() => handleConstructRemove('interiorElements', idx)}>
-                                            <TrashIcon />
-                                        </button>
-                                    </div>
-                                ))}
-                                <button className={styles.addBtn} onClick={() => handleConstructAdd('interiorElements')}>
-                                    <PlusIcon /> Add Item
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className={styles.preTextRow}>
-                        <label className={styles.preTextLabel}>Pre-text</label>
-                        <input
-                            className={styles.input}
-                            value={constructSettings.placeholder}
-                            onChange={(e) => setConstructSettings({ ...constructSettings, placeholder: e.target.value })}
-                            placeholder="Construct pre-text..."
-                        />
-                    </div>
-
-                    <div className={styles.cardFooter}>
-                        <button className={styles.saveBtn} onClick={handleSaveConstruct}>Save Card</button>
+        <>
+            {AlertComponent}
+            <div className={styles.container}>
+                <div className={styles.header}>
+                    <div>
+                        <h1 className={styles.title}>Construct/Chattels</h1>
+                        <p className={styles.description}>Select options to build the construction and chattels description for the valuation report.</p>
                     </div>
                 </div>
 
-                <div className={styles.card}>
-                    <div className={styles.cardHeaderRow}>
-                        <div className={styles.cardTitle}>Chattels Card</div>
-                        <div className={styles.headerInputGroup}>
-                            <label className={styles.headerLabel}>Placeholder:</label>
-                            <input
-                                className={styles.coloredInput}
-                                value={chattelsSettings.replaceholder || ""}
-                                onChange={(e) => setChattelsSettings({ ...chattelsSettings, replaceholder: e.target.value })}
-                                placeholder="Alternative placeholder..."
-                            />
-                        </div>
-                    </div>
-
-                    <div className={styles.cardContent}>
-                        {/* Chattels List */}
-                        <div className={styles.column} style={{ flex: '0 0 40%' }}>
-                            <div className={styles.columnHeader}>Chattels List</div>
-                            <div className={styles.inputList}>
-                                {chattelsSettings.list.map((item, idx) => (
-                                    <div key={item.id} className={styles.inputRow}>
-                                        <input
-                                            className={styles.input}
-                                            value={item.label}
-                                            onChange={(e) => handleChattelsChange(idx, e.target.value)}
-                                            placeholder="Chattel name..."
-                                        />
-                                        <button className={styles.deleteBtn} onClick={() => handleChattelsRemove(idx)}>
-                                            <TrashIcon />
-                                        </button>
-                                    </div>
-                                ))}
-                                <button className={styles.addBtn} onClick={handleChattelsAdd}>
-                                    <PlusIcon /> Add Item
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Chattels Description */}
-                        <div className={styles.column}>
-                            <div className={styles.preTextRow}>
-                                <label className={styles.preTextLabel}>Pre-text</label>
+                <div className={styles.cardList}>
+                    <div className={styles.card}>
+                        <div className={styles.cardHeaderRow}>
+                            <div className={styles.cardTitle}>Construct Card</div>
+                            <div className={styles.headerInputGroup}>
+                                <label className={styles.headerLabel}>Placeholder:</label>
                                 <input
-                                    className={styles.input}
-                                    value={chattelsSettings.placeholder}
-                                    onChange={(e) => setChattelsSettings({ ...chattelsSettings, placeholder: e.target.value })}
-                                    placeholder="Chattels pre-text..."
+                                    className={styles.coloredInput}
+                                    value={constructSettings.replaceholder || ""}
+                                    onChange={(e) => setConstructSettings({ ...constructSettings, replaceholder: e.target.value })}
+                                    placeholder="Alternative placeholder..."
                                 />
                             </div>
                         </div>
+
+                        <div className={styles.cardContent}>
+                            {/* Construct Element */}
+                            <div className={styles.column}>
+                                <div className={styles.columnHeader}>Construct Element</div>
+                                <div className={styles.inputList}>
+                                    {constructSettings.elements.map((item, idx) => (
+                                        <div key={item.id} className={styles.inputRow}>
+                                            <input
+                                                className={styles.input}
+                                                value={item.label}
+                                                onChange={(e) => handleConstructChange('elements', idx, e.target.value)}
+                                                placeholder="Item name..."
+                                            />
+                                            <button className={styles.deleteBtn} onClick={() => handleConstructRemove('elements', idx)}>
+                                                <TrashIcon />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <button className={styles.addBtn} onClick={() => handleConstructAdd('elements')}>
+                                        <PlusIcon /> Add Item
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Interior Element */}
+                            <div className={styles.column}>
+                                <div className={styles.columnHeader}>Interior Element</div>
+                                <div className={styles.inputList}>
+                                    {constructSettings.interiorElements.map((item, idx) => (
+                                        <div key={item.id} className={styles.inputRow}>
+                                            <input
+                                                className={styles.input}
+                                                value={item.label}
+                                                onChange={(e) => handleConstructChange('interiorElements', idx, e.target.value)}
+                                                placeholder="Item name..."
+                                            />
+                                            <button className={styles.deleteBtn} onClick={() => handleConstructRemove('interiorElements', idx)}>
+                                                <TrashIcon />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <button className={styles.addBtn} onClick={() => handleConstructAdd('interiorElements')}>
+                                        <PlusIcon /> Add Item
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className={styles.preTextRow}>
+                            <label className={styles.preTextLabel}>Pre-text</label>
+                            <input
+                                className={styles.input}
+                                value={constructSettings.placeholder}
+                                onChange={(e) => setConstructSettings({ ...constructSettings, placeholder: e.target.value })}
+                                placeholder="Construct pre-text..."
+                            />
+                        </div>
+
+                        <div className={styles.cardFooter}>
+                            <button className={styles.saveBtn} onClick={handleSaveConstruct}>Save Card</button>
+                        </div>
                     </div>
 
-                    <div className={styles.cardFooter}>
-                        <button className={styles.saveBtn} onClick={handleSaveChattels}>Save Card</button>
+                    <div className={styles.card}>
+                        <div className={styles.cardHeaderRow}>
+                            <div className={styles.cardTitle}>Chattels Card</div>
+                            <div className={styles.headerInputGroup}>
+                                <label className={styles.headerLabel}>Placeholder:</label>
+                                <input
+                                    className={styles.coloredInput}
+                                    value={chattelsSettings.replaceholder || ""}
+                                    onChange={(e) => setChattelsSettings({ ...chattelsSettings, replaceholder: e.target.value })}
+                                    placeholder="Alternative placeholder..."
+                                />
+                            </div>
+                        </div>
+
+                        <div className={styles.cardContent}>
+                            {/* Chattels List */}
+                            <div className={styles.column} style={{ flex: '0 0 40%' }}>
+                                <div className={styles.columnHeader}>Chattels List</div>
+                                <div className={styles.inputList}>
+                                    {chattelsSettings.list.map((item, idx) => (
+                                        <div key={item.id} className={styles.inputRow}>
+                                            <input
+                                                className={styles.input}
+                                                value={item.label}
+                                                onChange={(e) => handleChattelsChange(idx, e.target.value)}
+                                                placeholder="Chattel name..."
+                                            />
+                                            <button className={styles.deleteBtn} onClick={() => handleChattelsRemove(idx)}>
+                                                <TrashIcon />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <button className={styles.addBtn} onClick={handleChattelsAdd}>
+                                        <PlusIcon /> Add Item
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Chattels Description */}
+                            <div className={styles.column}>
+                                <div className={styles.preTextRow}>
+                                    <label className={styles.preTextLabel}>Pre-text</label>
+                                    <input
+                                        className={styles.input}
+                                        value={chattelsSettings.placeholder}
+                                        onChange={(e) => setChattelsSettings({ ...chattelsSettings, placeholder: e.target.value })}
+                                        placeholder="Chattels pre-text..."
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className={styles.cardFooter}>
+                            <button className={styles.saveBtn} onClick={handleSaveChattels}>Save Card</button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+
+        </>
     );
 }

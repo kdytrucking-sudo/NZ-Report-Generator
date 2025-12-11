@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { getImageConfigs, saveImageConfig, deleteImageConfig, ImageConfigCard } from "@/lib/firestore-image-config";
+import { useCustomConfirm } from "@/components/CustomConfirm";
 import styles from "./page.module.css";
+import { useCustomAlert } from "@/components/CustomAlert";
 
 // Helper Icons
 const TrashIcon = () => (
@@ -32,6 +34,8 @@ const SaveIcon = () => (
 
 
 export default function ImageConfigPage() {
+    const { showConfirm, ConfirmComponent } = useCustomConfirm();
+    const { showAlert, AlertComponent } = useCustomAlert();
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -70,7 +74,8 @@ export default function ImageConfigPage() {
 
     const handleDelete = async (index: number) => {
         const config = configs[index];
-        if (confirm("Are you sure you want to delete this configuration?")) {
+        const confirmed = await showConfirm("Are you sure you want to delete this configuration?");
+        if (confirmed) {
             if (config.id) {
                 await deleteImageConfig(user.uid, config.id);
             }
@@ -89,7 +94,7 @@ export default function ImageConfigPage() {
     const handleSave = async (index: number) => {
         const config = configs[index];
         if (!config.name.trim()) {
-            alert("Name is required.");
+            showAlert("Name is required.");
             return;
         }
         try {
@@ -98,11 +103,11 @@ export default function ImageConfigPage() {
                 const newConfigs = [...configs];
                 newConfigs[index].id = newId;
                 setConfigs(newConfigs);
-                alert("Saved!");
+                showAlert("Saved!");
             }
         } catch (e) {
             console.error(e);
-            alert("Failed to save.");
+            showAlert("Failed to save.");
         }
     };
 
@@ -111,89 +116,94 @@ export default function ImageConfigPage() {
     }
 
     return (
-        <div className={styles.container}>
-            <div className={styles.header}>
-                <div>
-                    <h1 className={styles.title}>Manage Image Configurations</h1>
-                    <p className={styles.description}>Define reusable image placeholders with their default dimensions.</p>
+        <>
+            {AlertComponent}
+            {ConfirmComponent}
+            <div className={styles.container}>
+                <div className={styles.header}>
+                    <div>
+                        <h1 className={styles.title}>Manage Image Configurations</h1>
+                        <p className={styles.description}>Define reusable image placeholders with their default dimensions.</p>
+                    </div>
+                    <button className={styles.addBtn} onClick={handleAdd}>
+                        <PlusIcon />
+                        Add Config
+                    </button>
                 </div>
-                <button className={styles.addBtn} onClick={handleAdd}>
-                    <PlusIcon />
-                    Add Config
-                </button>
-            </div>
 
-            <div className={styles.grid}>
-                {configs.map((config, index) => (
-                    <div key={config.id || `temp-${index}`} className={styles.card}>
+                <div className={styles.grid}>
+                    {configs.map((config, index) => (
+                        <div key={config.id || `temp-${index}`} className={styles.card}>
 
-                        {/* Row 1: Name (Label + Input + Icons) */}
-                        <div className={styles.rowOne}>
-                            <span className={styles.nameLabel}>Name</span>
-                            <div style={{ flex: 1 }}> {/* Wrapper to ensure input doesn't collapse */}
+                            {/* Row 1: Name (Label + Input + Icons) */}
+                            <div className={styles.rowOne}>
+                                <span className={styles.nameLabel}>Name</span>
+                                <div style={{ flex: 1 }}> {/* Wrapper to ensure input doesn't collapse */}
+                                    <input
+                                        className={`${styles.input}`}
+                                        style={{ width: '100%' }}
+                                        value={config.name}
+                                        onChange={(e) => handleChange(index, "name", e.target.value)}
+                                        placeholder="Image Name"
+                                    />
+                                </div>
+                                <button
+                                    className={`${styles.iconBtn} ${styles.saveIconBtn}`}
+                                    onClick={() => handleSave(index)}
+                                    title="Save"
+                                >
+                                    <SaveIcon />
+                                </button>
+                                <button
+                                    className={`${styles.iconBtn} ${styles.deleteIconBtn}`}
+                                    onClick={() => handleDelete(index)}
+                                    title="Delete"
+                                >
+                                    <TrashIcon />
+                                </button>
+                            </div>
+
+                            {/* Row 2: Holder */}
+                            <div className={styles.rowTwo}>
+                                <span className={styles.holderLabel}>Holder</span>
                                 <input
                                     className={`${styles.input}`}
-                                    style={{ width: '100%' }}
-                                    value={config.name}
-                                    onChange={(e) => handleChange(index, "name", e.target.value)}
-                                    placeholder="Image Name"
+                                    value={config.placeholder}
+                                    onChange={(e) => handleChange(index, "placeholder", e.target.value)}
+                                    placeholder="{%Image_Tag}"
                                 />
                             </div>
-                            <button
-                                className={`${styles.iconBtn} ${styles.saveIconBtn}`}
-                                onClick={() => handleSave(index)}
-                                title="Save"
-                            >
-                                <SaveIcon />
-                            </button>
-                            <button
-                                className={`${styles.iconBtn} ${styles.deleteIconBtn}`}
-                                onClick={() => handleDelete(index)}
-                                title="Delete"
-                            >
-                                <TrashIcon />
-                            </button>
+
+                            {/* Row 3: Dimensions */}
+                            <div className={styles.rowThree}>
+                                <span className={styles.nameLabel} style={{ width: '45px' }}>Width</span>
+                                <input
+                                    type="number"
+                                    className={styles.input}
+                                    value={config.width}
+                                    onChange={(e) => handleChange(index, "width", e.target.value)}
+                                />
+
+                                <span className={styles.nameLabel} style={{ width: 'auto', marginLeft: '1rem' }}>Height</span>
+                                <input
+                                    type="number"
+                                    className={styles.input}
+                                    value={config.height}
+                                    onChange={(e) => handleChange(index, "height", e.target.value)}
+                                />
+                            </div>
+
                         </div>
+                    ))}
+                </div>
 
-                        {/* Row 2: Holder */}
-                        <div className={styles.rowTwo}>
-                            <span className={styles.holderLabel}>Holder</span>
-                            <input
-                                className={`${styles.input}`}
-                                value={config.placeholder}
-                                onChange={(e) => handleChange(index, "placeholder", e.target.value)}
-                                placeholder="{%Image_Tag}"
-                            />
-                        </div>
-
-                        {/* Row 3: Dimensions */}
-                        <div className={styles.rowThree}>
-                            <span className={styles.nameLabel} style={{ width: '45px' }}>Width</span>
-                            <input
-                                type="number"
-                                className={styles.input}
-                                value={config.width}
-                                onChange={(e) => handleChange(index, "width", e.target.value)}
-                            />
-
-                            <span className={styles.nameLabel} style={{ width: 'auto', marginLeft: '1rem' }}>Height</span>
-                            <input
-                                type="number"
-                                className={styles.input}
-                                value={config.height}
-                                onChange={(e) => handleChange(index, "height", e.target.value)}
-                            />
-                        </div>
-
+                {configs.length === 0 && !loading && (
+                    <div className="text-center p-8 text-gray-500">
+                        No image configurations found. Click "Add Config" to start.
                     </div>
-                ))}
+                )}
             </div>
 
-            {configs.length === 0 && !loading && (
-                <div className="text-center p-8 text-gray-500">
-                    No image configurations found. Click "Add Config" to start.
-                </div>
-            )}
-        </div>
+        </>
     );
 }

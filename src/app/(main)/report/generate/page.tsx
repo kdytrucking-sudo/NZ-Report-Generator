@@ -9,11 +9,13 @@ import { getTemplates, ReportTemplate } from "@/lib/firestore-templates";
 import styles from "./page.module.css";
 import Link from "next/link";
 import { formatDateForInput } from "@/lib/date-utils";
+import { useCustomAlert } from "@/components/CustomAlert";
 
 export default function ReportGeneratePage() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const reportId = searchParams.get("id");
+    const { showAlert, AlertComponent } = useCustomAlert();
 
     const [user, setUser] = useState<any>(null);
     const [report, setReport] = useState<Report | null>(null);
@@ -52,7 +54,7 @@ export default function ReportGeneratePage() {
 
     const handleGenerate = async () => {
         if (!selectedTemplateId || !user) {
-            alert("Please select a template.");
+            showAlert("Please select a template.");
             return;
         }
         setGenerating(true);
@@ -79,7 +81,7 @@ export default function ReportGeneratePage() {
 
         } catch (error: any) {
             console.error(error);
-            alert(`Failed to generate report: ${error.message}`);
+            showAlert(`Failed to generate report: ${error.message}`);
         } finally {
             setGenerating(false);
         }
@@ -102,83 +104,86 @@ export default function ReportGeneratePage() {
     const contentSections = report.content || {};
 
     return (
-        <div className={styles.container}>
-            <div className={styles.header}>
-                <h1 className={styles.title}>Generate Report</h1>
-                <p className={styles.subtitle}>Select a template and review your data before generation.</p>
-            </div>
+        <>
+            {AlertComponent}
+            <div className={styles.container}>
+                <div className={styles.header}>
+                    <h1 className={styles.title}>Generate Report</h1>
+                    <p className={styles.subtitle}>Select a template and review your data before generation.</p>
+                </div>
 
-            <div className={styles.mainGrid}>
-                {/* Left Column: Template Selection */}
-                <div className={styles.card}>
-                    <h2 className={styles.cardTitle}>Select Template</h2>
-                    {templates.length > 0 ? (
-                        <select
-                            className={styles.select}
-                            value={selectedTemplateId}
-                            onChange={(e) => setSelectedTemplateId(e.target.value)}
-                        >
-                            {templates.map(t => (
-                                <option key={t.id} value={t.id}>{t.name}</option>
-                            ))}
-                        </select>
-                    ) : (
-                        <div className="text-sm text-gray-500">No templates found. Please upload one in Settings.</div>
-                    )}
+                <div className={styles.mainGrid}>
+                    {/* Left Column: Template Selection */}
+                    <div className={styles.card}>
+                        <h2 className={styles.cardTitle}>Select Template</h2>
+                        {templates.length > 0 ? (
+                            <select
+                                className={styles.select}
+                                value={selectedTemplateId}
+                                onChange={(e) => setSelectedTemplateId(e.target.value)}
+                            >
+                                {templates.map(t => (
+                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                ))}
+                            </select>
+                        ) : (
+                            <div className="text-sm text-gray-500">No templates found. Please upload one in Settings.</div>
+                        )}
 
-                    <div style={{ marginTop: 'auto', fontSize: '0.875rem', color: '#64748b' }}>
-                        <p>Selected Template: {templates.find(t => t.id === selectedTemplateId)?.name}</p>
+                        <div style={{ marginTop: 'auto', fontSize: '0.875rem', color: '#64748b' }}>
+                            <p>Selected Template: {templates.find(t => t.id === selectedTemplateId)?.name}</p>
+                        </div>
+                    </div>
+
+                    {/* Right Column: Preview */}
+                    <div className={styles.card}>
+                        <h2 className={styles.cardTitle}>Data Preview</h2>
+                        <div className={styles.previewContainer}>
+
+                            {/* Basic Info Section */}
+                            <div className={styles.sectionTitle}>Basic Information</div>
+                            {(report.baseInfo?.fieldOrder || Object.keys(baseInfoFields)).map(key => {
+                                const field = baseInfoFields[key];
+                                if (!field) return null;
+                                return renderFieldRow(key, field);
+                            })}
+
+                            {/* Content Sections */}
+                            {(report.contentOrder || Object.keys(contentSections)).map(sectionKey => {
+                                const section = contentSections[sectionKey];
+                                if (!section) return null;
+                                return (
+                                    <div key={sectionKey}>
+                                        <div className={styles.sectionTitle}>{section.title}</div>
+                                        {Object.keys(section.fields).map(fieldKey => renderFieldRow(fieldKey, section.fields[fieldKey]))}
+                                    </div>
+                                );
+                            })}
+
+                        </div>
                     </div>
                 </div>
 
-                {/* Right Column: Preview */}
-                <div className={styles.card}>
-                    <h2 className={styles.cardTitle}>Data Preview</h2>
-                    <div className={styles.previewContainer}>
-
-                        {/* Basic Info Section */}
-                        <div className={styles.sectionTitle}>Basic Information</div>
-                        {(report.baseInfo?.fieldOrder || Object.keys(baseInfoFields)).map(key => {
-                            const field = baseInfoFields[key];
-                            if (!field) return null;
-                            return renderFieldRow(key, field);
-                        })}
-
-                        {/* Content Sections */}
-                        {(report.contentOrder || Object.keys(contentSections)).map(sectionKey => {
-                            const section = contentSections[sectionKey];
-                            if (!section) return null;
-                            return (
-                                <div key={sectionKey}>
-                                    <div className={styles.sectionTitle}>{section.title}</div>
-                                    {Object.keys(section.fields).map(fieldKey => renderFieldRow(fieldKey, section.fields[fieldKey]))}
-                                </div>
-                            );
-                        })}
-
-                    </div>
+                {/* Footer Actions */}
+                <div className={styles.footer}>
+                    <button
+                        className={styles.secondaryBtn}
+                        onClick={() => router.push(`/report/content?id=${reportId}`)}
+                    >
+                        &larr; Back to Content
+                    </button>
+                    <button
+                        className={styles.primaryBtn}
+                        onClick={handleGenerate}
+                        disabled={generating || !selectedTemplateId}
+                    >
+                        {generating ? "Generating..." : "Generate Report"}
+                        {!generating && (
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        )}
+                    </button>
                 </div>
             </div>
-
-            {/* Footer Actions */}
-            <div className={styles.footer}>
-                <button
-                    className={styles.secondaryBtn}
-                    onClick={() => router.push(`/report/content?id=${reportId}`)}
-                >
-                    &larr; Back to Content
-                </button>
-                <button
-                    className={styles.primaryBtn}
-                    onClick={handleGenerate}
-                    disabled={generating || !selectedTemplateId}
-                >
-                    {generating ? "Generating..." : "Generate Report"}
-                    {!generating && (
-                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                    )}
-                </button>
-            </div>
-        </div>
+        </>
     );
 }

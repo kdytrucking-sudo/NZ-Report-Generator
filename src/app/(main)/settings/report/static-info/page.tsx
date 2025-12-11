@@ -6,8 +6,10 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { getStaticInfo, updateStaticInfo, StaticInformation } from "@/lib/firestore-static";
 import styles from "./page.module.css";
+import { useCustomAlert } from "@/components/CustomAlert";
 
 export default function StaticInformationPage() {
+    const { showAlert, AlertComponent } = useCustomAlert();
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -59,10 +61,10 @@ export default function StaticInformationPage() {
         setSaving(true);
         try {
             await updateStaticInfo(user.uid, formData);
-            alert("Static information saved successfully!");
+            showAlert("Static information saved successfully!");
         } catch (error) {
             console.error("Error saving static info:", error);
-            alert("Failed to save changes.");
+            showAlert("Failed to save changes.");
         } finally {
             setSaving(false);
         }
@@ -73,6 +75,8 @@ export default function StaticInformationPage() {
     }
 
     return (
+        <>
+        {AlertComponent}
         <div className={styles.container}>
             <div className={styles.header}>
                 <div className={styles.headerLeft}>
@@ -240,5 +244,7 @@ export default function StaticInformationPage() {
 
             </div>
         </div>
+    
+        </>
     );
 }

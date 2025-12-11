@@ -17,11 +17,13 @@ import {
 } from "@/lib/firestore-construct-chattels";
 
 import styles from "./page.module.css";
+import { useCustomAlert } from "@/components/CustomAlert";
 
 export default function PreprocessPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const reportId = searchParams.get("id");
+    const { showAlert, AlertComponent } = useCustomAlert();
 
     const [user, setUser] = useState<any>(null);
     const [report, setReport] = useState<Report | null>(null);
@@ -65,7 +67,7 @@ export default function PreprocessPage() {
             }
         } catch (error) {
             console.error(error);
-            alert("Initialization failed.");
+            showAlert("Initialization failed.");
         }
     };
 
@@ -75,7 +77,7 @@ export default function PreprocessPage() {
         try {
             const promptSettings = await getPDFExtractPrompt(user.uid);
             if (!promptSettings) {
-                alert("Please configure AI Prompt settings first in Settings > AI.");
+                showAlert("Please configure AI Prompt settings first in Settings > AI.");
                 setIsExtracting(false);
                 return;
             }
@@ -129,7 +131,7 @@ export default function PreprocessPage() {
 
         } catch (error: any) {
             console.error(error);
-            alert("AI Error: " + error.message);
+            showAlert("AI Error: " + error.message);
         } finally {
             setIsExtracting(false);
         }
@@ -158,10 +160,10 @@ export default function PreprocessPage() {
             const { metadata, baseInfo, content } = updatedReport;
             await updateReport(user.uid, report.id, { metadata, baseInfo, content });
             setReport(updatedReport);
-            alert("Database updated successfully!");
+            showAlert("Database updated successfully!");
         } catch (e) {
             console.error(e);
-            alert("Failed to update database.");
+            showAlert("Failed to update database.");
         }
     };
 
@@ -177,11 +179,11 @@ export default function PreprocessPage() {
             if (data) {
                 setStaticData(data);
             } else {
-                alert("No static information found. Please configure it in Settings.");
+                showAlert("No static information found. Please configure it in Settings.");
             }
         } catch (error) {
             console.error(error);
-            alert("Failed to load static info.");
+            showAlert("Failed to load static info.");
         } finally {
             setStaticLoading(false);
         }
@@ -223,10 +225,10 @@ export default function PreprocessPage() {
             const { metadata, baseInfo, content } = updatedReport;
             await updateReport(user.uid, report.id, { metadata, baseInfo, content });
             setReport(updatedReport);
-            alert("Static data updated to report!");
+            showAlert("Static data updated to report!");
         } catch (e) {
             console.error(e);
-            alert("Failed to update report with static data.");
+            showAlert("Failed to update report with static data.");
         }
     };
 
@@ -390,10 +392,10 @@ export default function PreprocessPage() {
             const { metadata, baseInfo, content } = updatedReport;
             await updateReport(user.uid, report.id, { metadata, baseInfo, content });
             setReport(updatedReport);
-            alert("Market Value data updated to report successfully!");
+            showAlert("Market Value data updated to report successfully!");
         } catch (e) {
             console.error(e);
-            alert("Failed to update report with Market Value data.");
+            showAlert("Failed to update report with Market Value data.");
         }
     };
 
@@ -407,7 +409,7 @@ export default function PreprocessPage() {
             setChattelsData(chData);
         } catch (error) {
             console.error(error);
-            alert("Failed to load Construct/Chattels data.");
+            showAlert("Failed to load Construct/Chattels data.");
         } finally {
             setCcLoading(false);
         }
@@ -485,10 +487,10 @@ export default function PreprocessPage() {
             const { metadata, baseInfo, content } = updatedReport;
             await updateReport(user.uid, report.id, { metadata, baseInfo, content });
             setReport(updatedReport);
-            alert("Construct/Chattels data updated to report!");
+            showAlert("Construct/Chattels data updated to report!");
         } catch (e) {
             console.error(e);
-            alert("Failed to update report with CC data.");
+            showAlert("Failed to update report with CC data.");
         }
     };
 
@@ -507,7 +509,7 @@ export default function PreprocessPage() {
             setSwotSelections(initialSelections);
         } catch (error) {
             console.error(error);
-            alert("Failed to load SWOT data.");
+            showAlert("Failed to load SWOT data.");
         } finally {
             setSwotLoading(false);
         }
@@ -575,10 +577,10 @@ export default function PreprocessPage() {
             const { metadata, baseInfo, content } = updatedReport;
             await updateReport(user.uid, report.id, { metadata, baseInfo, content });
             setReport(updatedReport);
-            alert("SWOT data updated to report!");
+            showAlert("SWOT data updated to report!");
         } catch (e) {
             console.error(e);
-            alert("Failed to update report with SWOT data.");
+            showAlert("Failed to update report with SWOT data.");
         }
     };
 
@@ -596,7 +598,7 @@ export default function PreprocessPage() {
             if (rooms.length > 0) setSelectedRoomTemplate(rooms[0].id);
         } catch (error) {
             console.error(error);
-            alert("Failed to load Room Settings.");
+            showAlert("Failed to load Room Settings.");
         } finally {
             setRoomLoading(false);
         }
@@ -667,10 +669,10 @@ export default function PreprocessPage() {
             const { metadata, baseInfo, content } = updatedReport;
             await updateReport(user.uid, report.id, { metadata, baseInfo, content });
             setReport(updatedReport);
-            alert("Room Options updated to report!");
+            showAlert("Room Options updated to report!");
         } catch (e) {
             console.error(e);
-            alert("Failed to update report with Room Options.");
+            showAlert("Failed to update report with Room Options.");
         }
     };
 
@@ -680,758 +682,761 @@ export default function PreprocessPage() {
     };
 
     return (
-        <div className={styles.container}>
-            <div className={styles.header}>
-                <h1 className={styles.title}>Data Pre-processing</h1>
-            </div>
+        <>
+            {AlertComponent}
+            <div className={styles.container}>
+                <div className={styles.header}>
+                    <h1 className={styles.title}>Data Pre-processing</h1>
+                </div>
 
-            {/* Tabs */}
-            <div className={styles.tabs}>
-                <button
-                    className={`${styles.tab} ${activeTab === 'ai-extract' ? styles.activeTab : ''}`}
-                    onClick={() => setActiveTab('ai-extract')}
-                >
-                    AI PDF Extract
-                </button>
-                <button
-                    className={`${styles.tab} ${activeTab === 'static-info' ? styles.activeTab : ''}`}
-                    onClick={() => setActiveTab('static-info')}
-                >
-                    Static Info
-                </button>
-                <button
-                    className={`${styles.tab} ${activeTab === 'swot' ? styles.activeTab : ''}`}
-                    onClick={() => setActiveTab('swot')}
-                >
-                    SWOT Data
-                </button>
-                <button
-                    className={`${styles.tab} ${activeTab === 'market-value' ? styles.activeTab : ''}`}
-                    onClick={() => setActiveTab('market-value')}
-                >
-                    Market Value
-                </button>
-                <button
-                    className={`${styles.tab} ${activeTab === 'construct-chattels' ? styles.activeTab : ''}`}
-                    onClick={() => setActiveTab('construct-chattels')}
-                >
-                    Construct/Chattels
-                </button>
-                <button
-                    className={`${styles.tab} ${activeTab === 'room-option' ? styles.activeTab : ''}`}
-                    onClick={() => setActiveTab('room-option')}
-                >
-                    Room Option
-                </button>
-            </div>
+                {/* Tabs */}
+                <div className={styles.tabs}>
+                    <button
+                        className={`${styles.tab} ${activeTab === 'ai-extract' ? styles.activeTab : ''}`}
+                        onClick={() => setActiveTab('ai-extract')}
+                    >
+                        AI PDF Extract
+                    </button>
+                    <button
+                        className={`${styles.tab} ${activeTab === 'static-info' ? styles.activeTab : ''}`}
+                        onClick={() => setActiveTab('static-info')}
+                    >
+                        Static Info
+                    </button>
+                    <button
+                        className={`${styles.tab} ${activeTab === 'swot' ? styles.activeTab : ''}`}
+                        onClick={() => setActiveTab('swot')}
+                    >
+                        SWOT Data
+                    </button>
+                    <button
+                        className={`${styles.tab} ${activeTab === 'market-value' ? styles.activeTab : ''}`}
+                        onClick={() => setActiveTab('market-value')}
+                    >
+                        Market Value
+                    </button>
+                    <button
+                        className={`${styles.tab} ${activeTab === 'construct-chattels' ? styles.activeTab : ''}`}
+                        onClick={() => setActiveTab('construct-chattels')}
+                    >
+                        Construct/Chattels
+                    </button>
+                    <button
+                        className={`${styles.tab} ${activeTab === 'room-option' ? styles.activeTab : ''}`}
+                        onClick={() => setActiveTab('room-option')}
+                    >
+                        Room Option
+                    </button>
+                </div>
 
-            {initDone && report && (
-                <div className={styles.tabContent}>
-                    {activeTab === 'ai-extract' && (
-                        <div className={styles.mainGrid}>
-                            {/* Files Column */}
-                            <div className={styles.card}>
-                                <h2 className={styles.cardTitle}>Source Files</h2>
-                                <div className={styles.fileItem}>
-                                    <strong>Title:</strong> {report.files.title?.name || "N/A"}
+                {initDone && report && (
+                    <div className={styles.tabContent}>
+                        {activeTab === 'ai-extract' && (
+                            <div className={styles.mainGrid}>
+                                {/* Files Column */}
+                                <div className={styles.card}>
+                                    <h2 className={styles.cardTitle}>Source Files</h2>
+                                    <div className={styles.fileItem}>
+                                        <strong>Title:</strong> {report.files.title?.name || "N/A"}
+                                    </div>
+                                    <div className={styles.fileItem}>
+                                        <strong>Brief:</strong> {report.files.brief?.name || "N/A"}
+                                    </div>
+                                    <div style={{ marginTop: 'auto' }}>
+                                        <p className="text-xs text-gray-500 mb-2">
+                                            AI will read these PDF/Doc files to extract data based on your "PDF Extract" Settings.
+                                        </p>
+                                        <button className={styles.extractBtn} onClick={handleAIExtract} disabled={isExtracting}>
+                                            {isExtracting ? "Extracting..." : "AI Extract Data"}
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className={styles.fileItem}>
-                                    <strong>Brief:</strong> {report.files.brief?.name || "N/A"}
-                                </div>
-                                <div style={{ marginTop: 'auto' }}>
-                                    <p className="text-xs text-gray-500 mb-2">
-                                        AI will read these PDF/Doc files to extract data based on your "PDF Extract" Settings.
-                                    </p>
-                                    <button className={styles.extractBtn} onClick={handleAIExtract} disabled={isExtracting}>
-                                        {isExtracting ? "Extracting..." : "AI Extract Data"}
-                                    </button>
+
+                                {/* Extracted Data Editor */}
+                                <div className={styles.card}>
+                                    <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
+                                        <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Extracted Data</h2>
+                                        <button className={styles.primaryBtn} onClick={handleUpdateDatabase} disabled={extractedData.length === 0}>
+                                            Update Report Database
+                                        </button>
+                                    </div>
+
+                                    {extractedData.length === 0 ? (
+                                        <div className="flex items-center justify-center h-40 text-gray-400">
+                                            No data extracted yet. Click "AI Extract Data".
+                                        </div>
+                                    ) : (
+                                        <div style={{ overflowX: 'auto' }}>
+                                            <table className={styles.editorTable}>
+                                                <thead>
+                                                    <tr>
+                                                        <th>Label</th>
+                                                        <th>Placeholder</th>
+                                                        <th style={{ minWidth: '200px' }}>Value</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {extractedData.map((row, idx) => (
+                                                        <tr key={idx}>
+                                                            <td style={{ verticalAlign: 'top', paddingTop: '0.75rem' }}>{row.label}</td>
+                                                            <td className="font-mono text-xs text-blue-600" style={{ verticalAlign: 'top', paddingTop: '0.75rem' }}>{row.placeholder}</td>
+                                                            <td>
+                                                                {row.displayType === 'textarea' ? (
+                                                                    <textarea
+                                                                        className={styles.textarea}
+                                                                        rows={3}
+                                                                        value={extractValues[idx] || ""}
+                                                                        onChange={(e) => setExtractValues(prev => ({ ...prev, [idx]: e.target.value }))}
+                                                                    />
+                                                                ) : row.displayType === 'date' ? (
+                                                                    <input
+                                                                        type="date"
+                                                                        className={styles.input}
+                                                                        value={formatDateForInput(extractValues[idx] || "")}
+                                                                        onChange={(e) => {
+                                                                            const val = formatDateForStorage(e.target.value);
+                                                                            setExtractValues(prev => ({ ...prev, [idx]: val }))
+                                                                        }}
+                                                                    />
+                                                                ) : (
+                                                                    <input
+                                                                        type="text"
+                                                                        className={styles.input}
+                                                                        value={extractValues[idx] || ""}
+                                                                        onChange={(e) => setExtractValues(prev => ({ ...prev, [idx]: e.target.value }))}
+                                                                    />
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
+                        )}
 
-                            {/* Extracted Data Editor */}
+
+                        {activeTab === 'static-info' && (
                             <div className={styles.card}>
-                                <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
-                                    <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Extracted Data</h2>
-                                    <button className={styles.primaryBtn} onClick={handleUpdateDatabase} disabled={extractedData.length === 0}>
-                                        Update Report Database
-                                    </button>
+                                <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-4">
+                                    <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Static Information</h2>
+                                    <div style={{ display: 'flex', gap: '1rem' }}>
+                                        <button className={styles.secondaryBtn} onClick={handleLoadStatic} disabled={staticLoading}>
+                                            {staticLoading ? "Loading..." : "Load From Settings"}
+                                        </button>
+                                        <button className={styles.primaryBtn} onClick={handleUpdateStaticToReport} disabled={Object.keys(staticData).length === 0}>
+                                            Update to Report
+                                        </button>
+                                    </div>
                                 </div>
 
-                                {extractedData.length === 0 ? (
-                                    <div className="flex items-center justify-center h-40 text-gray-400">
-                                        No data extracted yet. Click "AI Extract Data".
+                                {Object.keys(staticData).length === 0 ? (
+                                    <div className="flex items-center justify-center h-20 text-gray-400">
+                                        Click "Load From Settings" to fetch your static content.
                                     </div>
                                 ) : (
-                                    <div style={{ overflowX: 'auto' }}>
-                                        <table className={styles.editorTable}>
-                                            <thead>
-                                                <tr>
-                                                    <th>Label</th>
-                                                    <th>Placeholder</th>
-                                                    <th style={{ minWidth: '200px' }}>Value</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {extractedData.map((row, idx) => (
-                                                    <tr key={idx}>
-                                                        <td style={{ verticalAlign: 'top', paddingTop: '0.75rem' }}>{row.label}</td>
-                                                        <td className="font-mono text-xs text-blue-600" style={{ verticalAlign: 'top', paddingTop: '0.75rem' }}>{row.placeholder}</td>
-                                                        <td>
-                                                            {row.displayType === 'textarea' ? (
-                                                                <textarea
-                                                                    className={styles.textarea}
-                                                                    rows={3}
-                                                                    value={extractValues[idx] || ""}
-                                                                    onChange={(e) => setExtractValues(prev => ({ ...prev, [idx]: e.target.value }))}
-                                                                />
-                                                            ) : row.displayType === 'date' ? (
-                                                                <input
-                                                                    type="date"
-                                                                    className={styles.input}
-                                                                    value={formatDateForInput(extractValues[idx] || "")}
-                                                                    onChange={(e) => {
-                                                                        const val = formatDateForStorage(e.target.value);
-                                                                        setExtractValues(prev => ({ ...prev, [idx]: val }))
-                                                                    }}
-                                                                />
-                                                            ) : (
-                                                                <input
-                                                                    type="text"
-                                                                    className={styles.input}
-                                                                    value={extractValues[idx] || ""}
-                                                                    onChange={(e) => setExtractValues(prev => ({ ...prev, [idx]: e.target.value }))}
-                                                                />
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                    <div className={styles.staticInfoGrid}>
+                                        {[
+                                            { key: 'nzEconomyOverview', label: 'NZ Economy Overview', placeholder: (staticData as any).nzEconomyOverview_ph },
+                                            { key: 'globalEconomyOverview', label: 'Global Economy Overview', placeholder: (staticData as any).globalEconomyOverview_ph },
+                                            { key: 'residentialMarket', label: 'Residential Market', placeholder: (staticData as any).residentialMarket_ph },
+                                            { key: 'recentMarketDirection', label: 'Market Direction', placeholder: (staticData as any).recentMarketDirection_ph },
+                                            { key: 'marketVolatility', label: 'Market Volatility', placeholder: (staticData as any).marketVolatility_ph },
+                                            { key: 'localEconomyImpact', label: 'Local Economy Impact', placeholder: (staticData as any).localEconomyImpact_ph }
+                                        ].map((field) => (
+                                            <div key={field.key} className={styles.staticInfoCard}>
+                                                <div className={styles.staticInfoLeft}>
+                                                    <div className={styles.staticInfoLabel}>{field.label}</div>
+                                                    <div className={styles.staticInfoPlaceholder}>
+                                                        {field.placeholder || <span className="text-gray-400 italic">No placeholder</span>}
+                                                    </div>
+                                                </div>
+                                                <div className={styles.staticInfoRight}>
+                                                    <textarea
+                                                        className={styles.staticInfoTextarea}
+                                                        rows={5}
+                                                        value={(staticData as any)[field.key] || ""}
+                                                        onChange={(e) => setStaticData(prev => ({ ...prev, [field.key]: e.target.value }))}
+                                                        placeholder={`Enter ${field.label.toLowerCase()}...`}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
                             </div>
-                        </div>
-                    )}
+                        )}
 
-
-                    {activeTab === 'static-info' && (
-                        <div className={styles.card}>
-                            <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-4">
-                                <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Static Information</h2>
-                                <div style={{ display: 'flex', gap: '1rem' }}>
-                                    <button className={styles.secondaryBtn} onClick={handleLoadStatic} disabled={staticLoading}>
-                                        {staticLoading ? "Loading..." : "Load From Settings"}
-                                    </button>
-                                    <button className={styles.primaryBtn} onClick={handleUpdateStaticToReport} disabled={Object.keys(staticData).length === 0}>
-                                        Update to Report
-                                    </button>
+                        {activeTab === 'swot' && (
+                            <div className={styles.card}>
+                                <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
+                                    <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>SWOT Data (Multi-Choice)</h2>
+                                    <div style={{ display: 'flex', gap: '1rem' }}>
+                                        <button className={styles.secondaryBtn} onClick={handleLoadSwot} disabled={swotLoading}>
+                                            {swotLoading ? "Loading..." : "Load From Settings"}
+                                        </button>
+                                        <button className={styles.primaryBtn} onClick={handleUpdateSwotToReport} disabled={swotCards.length === 0}>
+                                            Update to Report
+                                        </button>
+                                    </div>
                                 </div>
+
+                                {swotCards.length === 0 ? (
+                                    <div className="flex items-center justify-center h-20 text-gray-400">
+                                        Click "Load From Settings" to fetch your multi-choice content (e.g., SWOT).
+                                    </div>
+                                ) : (
+                                    <div>
+                                        {swotCards.map((card) => {
+                                            const selection = swotSelections[card.id] || { selectedOptions: [], textValue: "" };
+
+                                            return (
+                                                <div key={card.id} className={styles.swotCard}>
+                                                    <div className={styles.swotHeader}>
+                                                        <span className={styles.swotTitle}>{card.name}</span>
+                                                        <span className={styles.swotPlaceholder}>{card.placeholder}</span>
+                                                    </div>
+
+                                                    <div className={styles.swotBody}>
+                                                        {/* Options Column */}
+                                                        <div className={styles.swotLeft}>
+                                                            <div className="space-y-1 flex-1 overflow-y-auto">
+                                                                {card.options.map(option => (
+                                                                    <label key={option.id} className="flex items-start gap-2 cursor-pointer p-2 hover:bg-white rounded transition-colors text-sm">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            className="mt-1"
+                                                                            checked={selection.selectedOptions.includes(option.value)}
+                                                                            onChange={() => handleOptionToggle(card.id, option.value)}
+                                                                        />
+                                                                        <span className="text-gray-700">{option.label}</span>
+                                                                    </label>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Text Area Column */}
+                                                        <div className={styles.swotRight}>
+                                                            <textarea
+                                                                className={styles.textarea}
+                                                                style={{ flex: 1, minHeight: '150px', resize: 'vertical' }}
+                                                                value={selection.textValue}
+                                                                onChange={(e) => handleSwotTextChange(card.id, e.target.value)}
+                                                                placeholder="Select options from the left or type here..."
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
+                        )}
 
-                            {Object.keys(staticData).length === 0 ? (
-                                <div className="flex items-center justify-center h-20 text-gray-400">
-                                    Click "Load From Settings" to fetch your static content.
+                        {activeTab === 'market-value' && (
+                            <div className={styles.card}>
+                                <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-4">
+                                    <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Market Value</h2>
+                                    <button className={styles.primaryBtn} onClick={handleUpdateMarketValueToReport}>
+                                        Update To Report
+                                    </button>
                                 </div>
-                            ) : (
-                                <div className={styles.staticInfoGrid}>
-                                    {[
-                                        { key: 'nzEconomyOverview', label: 'NZ Economy Overview', placeholder: (staticData as any).nzEconomyOverview_ph },
-                                        { key: 'globalEconomyOverview', label: 'Global Economy Overview', placeholder: (staticData as any).globalEconomyOverview_ph },
-                                        { key: 'residentialMarket', label: 'Residential Market', placeholder: (staticData as any).residentialMarket_ph },
-                                        { key: 'recentMarketDirection', label: 'Market Direction', placeholder: (staticData as any).recentMarketDirection_ph },
-                                        { key: 'marketVolatility', label: 'Market Volatility', placeholder: (staticData as any).marketVolatility_ph },
-                                        { key: 'localEconomyImpact', label: 'Local Economy Impact', placeholder: (staticData as any).localEconomyImpact_ph }
-                                    ].map((field) => (
-                                        <div key={field.key} className={styles.staticInfoCard}>
-                                            <div className={styles.staticInfoLeft}>
-                                                <div className={styles.staticInfoLabel}>{field.label}</div>
-                                                <div className={styles.staticInfoPlaceholder}>
-                                                    {field.placeholder || <span className="text-gray-400 italic">No placeholder</span>}
+
+                                <div className={styles.marketValueContainer}>
+                                    {/* Market Value Input Card */}
+                                    <div className={styles.marketValueCard}>
+                                        <h3 className={styles.marketValueCardHeader}>Market Value</h3>
+
+                                        <div className={styles.marketValueGrid}>
+                                            <div className={styles.marketValueInputGroup}>
+                                                <label className={styles.marketValueLabel}>Market Value ($)</label>
+                                                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                                    <input
+                                                        className={styles.marketValueInput}
+                                                        placeholder="560000"
+                                                        value={mvInput}
+                                                        onChange={(e) => setMvInput(e.target.value)}
+                                                    />
+                                                    <button className={styles.marketValueButton} onClick={handleMvUpdate}>
+                                                        Update
+                                                    </button>
                                                 </div>
                                             </div>
-                                            <div className={styles.staticInfoRight}>
-                                                <textarea
-                                                    className={styles.staticInfoTextarea}
-                                                    rows={5}
-                                                    value={(staticData as any)[field.key] || ""}
-                                                    onChange={(e) => setStaticData(prev => ({ ...prev, [field.key]: e.target.value }))}
-                                                    placeholder={`Enter ${field.label.toLowerCase()}...`}
+
+                                            <div className={styles.marketValueInputGroup}>
+                                                <label className={styles.marketValueLabel}>
+                                                    Formatted Value
+                                                    <span
+                                                        className={styles.marketValuePlaceholder}
+                                                        title={phMarketValue}
+                                                    >
+                                                        P
+                                                    </span>
+                                                </label>
+                                                <input
+                                                    className={styles.marketValueInput}
+                                                    value={mvFormatted}
+                                                    readOnly
+                                                />
+                                            </div>
+
+                                            <div className={styles.marketValueInputGroup}>
+                                                <label className={styles.marketValueLabel}>
+                                                    Narrative
+                                                    <span
+                                                        className={styles.marketValuePlaceholder}
+                                                        title={phMarketValuation}
+                                                    >
+                                                        P
+                                                    </span>
+                                                </label>
+                                                <div className={styles.marketValueNarrative}>
+                                                    {mvFormatted && <span className={styles.marketValueNarrativeAmount}>{mvFormatted}</span>}
+                                                    {mvNarrative && <span className={styles.marketValueNarrativeText}>{mvNarrative}</span>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Valuation Breakdown Card */}
+                                    <div className={styles.marketValueCard}>
+                                        <h3 className={styles.marketValueCardHeader}>Valuation Breakdown</h3>
+
+                                        <div className={styles.marketValueGrid}>
+                                            <div className={styles.marketValueInputGroup}>
+                                                <label className={styles.marketValueLabel}>
+                                                    Improvements
+                                                    <span
+                                                        className={styles.marketValuePlaceholder}
+                                                        title={phImprovement}
+                                                    >
+                                                        P
+                                                    </span>
+                                                </label>
+                                                <input
+                                                    className={styles.marketValueInput}
+                                                    placeholder="130,000"
+                                                    value={bdImprovements}
+                                                    onChange={(e) => setBdImprovements(e.target.value)}
+                                                />
+                                            </div>
+
+                                            <div className={styles.marketValueInputGroup}>
+                                                <label className={styles.marketValueLabel}>
+                                                    Land
+                                                    <span
+                                                        className={styles.marketValuePlaceholder}
+                                                        title={phLand}
+                                                    >
+                                                        P
+                                                    </span>
+                                                </label>
+                                                <input
+                                                    className={styles.marketValueInput}
+                                                    placeholder="340,000"
+                                                    value={bdLand}
+                                                    onChange={(e) => setBdLand(e.target.value)}
+                                                />
+                                            </div>
+
+                                            <div className={styles.marketValueInputGroup}>
+                                                <label className={styles.marketValueLabel}>
+                                                    Chattels
+                                                    <span
+                                                        className={styles.marketValuePlaceholder}
+                                                        title={phChattels}
+                                                    >
+                                                        P
+                                                    </span>
+                                                </label>
+                                                <input
+                                                    className={styles.marketValueInput}
+                                                    placeholder="80,000"
+                                                    value={bdChattels}
+                                                    onChange={(e) => setBdChattels(e.target.value)}
+                                                />
+                                            </div>
+
+                                            <div className={styles.marketValueInputGroup}>
+                                                <label className={styles.marketValueLabel}>
+                                                    Total
+                                                    <span
+                                                        className={styles.marketValuePlaceholder}
+                                                        title={phTotalMarket}
+                                                    >
+                                                        P
+                                                    </span>
+                                                </label>
+                                                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                                    <input
+                                                        className={styles.marketValueInput}
+                                                        value={bdTotal}
+                                                        readOnly
+                                                    />
+                                                    {bdMatch === 'equal' && (
+                                                        <span className={`${styles.marketValueStatus} ${styles.marketValueStatusSuccess}`}>
+                                                            ✓ Equal
+                                                        </span>
+                                                    )}
+                                                    {bdMatch === 'error' && (
+                                                        <span className={`${styles.marketValueStatus} ${styles.marketValueStatusError}`}>
+                                                            ✗ Error
+                                                        </span>
+                                                    )}
+                                                    <button className={styles.marketValueButtonSecondary} onClick={handleBdSum}>
+                                                        Sum & Check
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Statutory Valuation Card */}
+                                    <div className={`${styles.marketValueCard} ${styles.marketValueStatutory}`}>
+                                        <div className={styles.marketValueStatutoryHeader}>
+                                            <h3 className={styles.marketValueStatutoryTitle}>Statutory Valuation</h3>
+                                            <span className={styles.marketValueStatutoryAddress}>
+                                                {report?.baseInfo?.fields?.['address']?.value || "7/20 William Souter Street, Forrest Hill, Auckland"}
+                                            </span>
+                                            <button className={styles.marketValueStatutoryButton} onClick={handleCopyOpenAddress}>
+                                                Copy & Open
+                                            </button>
+                                        </div>
+
+                                        <div className={styles.marketValueGrid}>
+                                            <div className={styles.marketValueInputGroup}>
+                                                <label className={styles.marketValueLabel}>
+                                                    Land
+                                                    <span
+                                                        className={styles.marketValuePlaceholder}
+                                                        title={phStatLand}
+                                                    >
+                                                        P
+                                                    </span>
+                                                </label>
+                                                <input
+                                                    className={styles.marketValueInput}
+                                                    placeholder="340,000"
+                                                    value={statLand}
+                                                    onChange={(e) => setStatLand(e.target.value)}
+                                                />
+                                            </div>
+
+                                            <div className={styles.marketValueInputGroup}>
+                                                <label className={styles.marketValueLabel}>
+                                                    Improvement
+                                                    <span
+                                                        className={styles.marketValuePlaceholder}
+                                                        title={phStatImprovements}
+                                                    >
+                                                        P
+                                                    </span>
+                                                </label>
+                                                <input
+                                                    className={styles.marketValueInput}
+                                                    placeholder="130,000"
+                                                    value={statImprovements}
+                                                    onChange={(e) => setStatImprovements(e.target.value)}
+                                                />
+                                            </div>
+
+                                            <div className={styles.marketValueInputGroup}>
+                                                <label className={styles.marketValueLabel}>
+                                                    Rating
+                                                    <span
+                                                        className={styles.marketValuePlaceholder}
+                                                        title={phStatRating}
+                                                    >
+                                                        P
+                                                    </span>
+                                                </label>
+                                                <input
+                                                    className={styles.marketValueInput}
+                                                    placeholder="550,000"
+                                                    value={statRating}
+                                                    onChange={(e) => setStatRating(e.target.value)}
                                                 />
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {activeTab === 'swot' && (
-                        <div className={styles.card}>
-                            <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
-                                <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>SWOT Data (Multi-Choice)</h2>
-                                <div style={{ display: 'flex', gap: '1rem' }}>
-                                    <button className={styles.secondaryBtn} onClick={handleLoadSwot} disabled={swotLoading}>
-                                        {swotLoading ? "Loading..." : "Load From Settings"}
-                                    </button>
-                                    <button className={styles.primaryBtn} onClick={handleUpdateSwotToReport} disabled={swotCards.length === 0}>
-                                        Update to Report
-                                    </button>
+                                    </div>
                                 </div>
                             </div>
+                        )}
 
-                            {swotCards.length === 0 ? (
-                                <div className="flex items-center justify-center h-20 text-gray-400">
-                                    Click "Load From Settings" to fetch your multi-choice content (e.g., SWOT).
+                        {activeTab === 'construct-chattels' && (
+                            <div className={styles.card}>
+                                <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
+                                    <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Construct / Chattels Data</h2>
+                                    <div style={{ display: 'flex', gap: '1rem' }}>
+                                        <button className={styles.secondaryBtn} onClick={handleLoadConstructChattels} disabled={ccLoading}>
+                                            {ccLoading ? "Loading..." : "Load From Settings"}
+                                        </button>
+                                        <button className={styles.primaryBtn} onClick={handleUpdateCCToReport} disabled={!constructData && !chattelsData}>
+                                            Update to Report
+                                        </button>
+                                    </div>
                                 </div>
-                            ) : (
-                                <div>
-                                    {swotCards.map((card) => {
-                                        const selection = swotSelections[card.id] || { selectedOptions: [], textValue: "" };
 
-                                        return (
-                                            <div key={card.id} className={styles.swotCard}>
-                                                <div className={styles.swotHeader}>
-                                                    <span className={styles.swotTitle}>{card.name}</span>
-                                                    <span className={styles.swotPlaceholder}>{card.placeholder}</span>
+                                {!constructData && !chattelsData ? (
+                                    <div className="flex items-center justify-center h-20 text-gray-400">
+                                        Click "Load From Settings" to fetch Construct & Chattels data.
+                                    </div>
+                                ) : (
+                                    <div>
+                                        {/* Construct Card */}
+                                        <div className={styles.ccCard}>
+                                            <div className={styles.ccHeaderRow}>
+                                                <h3 className={styles.ccTitle}>Construct Card</h3>
+                                            </div>
+
+                                            <div className={styles.ccGrid}>
+                                                {/* Left Column: Construct Element List */}
+                                                <div className={styles.ccColumnLeft}>
+                                                    <div className={styles.ccSubHeader}>
+                                                        <span className={styles.ccLabel}>Construct Element</span>
+                                                    </div>
+                                                    <div className={styles.optionList}>
+                                                        {constructData?.elements?.map(opt => (
+                                                            <label key={opt.id} className="flex items-start gap-2 cursor-pointer p-1 hover:bg-gray-50 rounded transition-colors text-sm">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    className="mt-1"
+                                                                    checked={selectedConstruct.includes(opt.id)}
+                                                                    onChange={() => toggleSelection('construct', opt.id)}
+                                                                />
+                                                                <span className="text-gray-700">{opt.label}</span>
+                                                            </label>
+                                                        ))}
+                                                    </div>
                                                 </div>
 
-                                                <div className={styles.swotBody}>
-                                                    {/* Options Column */}
-                                                    <div className={styles.swotLeft}>
-                                                        <div className="space-y-1 flex-1 overflow-y-auto">
-                                                            {card.options.map(option => (
-                                                                <label key={option.id} className="flex items-start gap-2 cursor-pointer p-2 hover:bg-white rounded transition-colors text-sm">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        className="mt-1"
-                                                                        checked={selection.selectedOptions.includes(option.value)}
-                                                                        onChange={() => handleOptionToggle(card.id, option.value)}
-                                                                    />
-                                                                    <span className="text-gray-700">{option.label}</span>
-                                                                </label>
-                                                            ))}
+                                                {/* Right Column: Interior + Description */}
+                                                <div className={styles.ccColumnRight}>
+                                                    <div className={styles.ccSubHeader}>
+                                                        <span className={styles.ccLabel}>Interior Element</span>
+                                                    </div>
+                                                    <div className={styles.optionList} style={{ marginBottom: '1rem', maxHeight: '120px' }}>
+                                                        {constructData?.interiorElements?.map(opt => (
+                                                            <label key={opt.id} className="flex items-start gap-2 cursor-pointer p-1 hover:bg-gray-50 rounded transition-colors text-sm">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    className="mt-1"
+                                                                    checked={selectedInterior.includes(opt.id)}
+                                                                    onChange={() => toggleSelection('interior', opt.id)}
+                                                                />
+                                                                <span className="text-gray-700">{opt.label}</span>
+                                                            </label>
+                                                        ))}
+                                                    </div>
+
+                                                    <div className={styles.ccDescriptionHeader}>
+                                                        <span className={styles.ccDescriptionTitle}>Construct Description</span>
+                                                        <span
+                                                            className={styles.ccPlaceholder}
+                                                            title={constructData?.replaceholder}
+                                                        >
+                                                            P
+                                                        </span>
+                                                    </div>
+                                                    <textarea
+                                                        className={styles.ccTextarea}
+                                                        value={constructText}
+                                                        onChange={(e) => setConstructText(e.target.value)}
+                                                        placeholder="Text will be generated here..."
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Chattels Card */}
+                                        <div className={styles.ccCard}>
+                                            <div className={styles.ccHeaderRow}>
+                                                <h3 className={styles.ccTitle}>Chattels Card</h3>
+                                            </div>
+
+                                            <div className={styles.ccGrid}>
+                                                {/* Left Column: Chattels List */}
+                                                <div className={styles.ccColumnLeft}>
+                                                    <div className={styles.ccSubHeader}>
+                                                        <span className={styles.ccLabel}>Chattels List</span>
+                                                    </div>
+                                                    <div className={styles.optionList}>
+                                                        {chattelsData?.list?.map(opt => (
+                                                            <label key={opt.id} className="flex items-start gap-2 cursor-pointer p-1 hover:bg-gray-50 rounded transition-colors text-sm">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    className="mt-1"
+                                                                    checked={selectedChattels.includes(opt.id)}
+                                                                    onChange={() => toggleSelection('chattels', opt.id)}
+                                                                />
+                                                                <span className="text-gray-700">{opt.label}</span>
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* Right Column: Description Only */}
+                                                <div className={styles.ccColumnRight}>
+                                                    <div className={styles.ccDescriptionHeader}>
+                                                        <span className={styles.ccDescriptionTitle}>Chattels Description</span>
+                                                        <span
+                                                            className={styles.ccPlaceholder}
+                                                            title={chattelsData?.replaceholder}
+                                                        >
+                                                            P
+                                                        </span>
+                                                    </div>
+                                                    <textarea
+                                                        className={styles.ccTextarea}
+                                                        value={chattelsText}
+                                                        onChange={(e) => setChattelsText(e.target.value)}
+                                                        placeholder="Text will be generated here..."
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'room-option' && (
+                            <div className={styles.card}>
+                                <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-6">
+                                    <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Room Option</h2>
+                                    <div style={{ display: 'flex', gap: '1rem' }}>
+                                        <button className={styles.secondaryBtn} onClick={handleLoadRoomSettings} disabled={roomLoading}>
+                                            {roomLoading ? "Loading..." : "Load From Settings"}
+                                        </button>
+                                        <button className={styles.primaryBtn} onClick={handleUpdateRoomToReport}>
+                                            Update to Report
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Add Room Card */}
+                                {roomTemplates.length > 0 && (
+                                    <div className={styles.addRoomCard}>
+                                        <h3 className={styles.addRoomTitle}>Add Room</h3>
+
+                                        <div className={styles.addRoomControls}>
+                                            <div className={styles.selectWrapper}>
+                                                <select
+                                                    className={styles.roomSelect}
+                                                    value={selectedRoomTemplate}
+                                                    onChange={(e) => setSelectedRoomTemplate(e.target.value)}
+                                                >
+                                                    {roomTemplates.map(t => (
+                                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                                    ))}
+                                                </select>
+                                                <div className={styles.selectIcon}>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                                </div>
+                                            </div>
+                                            <button
+                                                className={styles.addRoomBtn}
+                                                onClick={handleAddRoom}
+                                            >
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                                                Add
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Added Rooms List */}
+                                <div className={styles.roomsList}>
+                                    {addedRooms.map((room, idx) => {
+                                        const template = roomTemplates.find(t => t.id === room.templateId);
+                                        return (
+                                            <div key={room.id} className={styles.roomCard}>
+                                                {/* Card Header */}
+                                                <div className={styles.roomCardHeader}>
+                                                    <h3 className={styles.roomCardTitle}>Room Option {room.id}</h3>
+                                                    <button
+                                                        onClick={() => handleDeleteRoom(idx)}
+                                                        className={styles.deleteRoomBtn}
+                                                        title="Remove Room"
+                                                    >
+                                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                                    </button>
+                                                </div>
+
+                                                <div className={styles.roomCardBody}>
+                                                    {/* Left Column: Inputs */}
+                                                    <div className={styles.roomCardLeft}>
+                                                        <div className={styles.roomInputGroup}>
+                                                            <div className={styles.roomInputHeader}>
+                                                                <label className={styles.roomInputLabel}>Room Name</label>
+                                                                <span className={styles.roomPlaceholder}>
+                                                                    {room.placeholderName}
+                                                                </span>
+                                                            </div>
+                                                            <input
+                                                                className={styles.roomInput}
+                                                                value={room.roomName}
+                                                                onChange={(e) => {
+                                                                    const newRooms = [...addedRooms];
+                                                                    newRooms[idx].roomName = e.target.value;
+                                                                    setAddedRooms(newRooms);
+                                                                }}
+                                                            />
+                                                        </div>
+
+                                                        <div className={styles.roomInputGroup}>
+                                                            <div className={styles.roomInputHeader}>
+                                                                <label className={styles.roomInputLabel}>Room Option Text</label>
+                                                                <span className={styles.roomPlaceholder}>
+                                                                    {room.placeholderText}
+                                                                </span>
+                                                            </div>
+                                                            <textarea
+                                                                className={styles.roomTextarea}
+                                                                value={room.textValue}
+                                                                readOnly
+                                                            />
                                                         </div>
                                                     </div>
 
-                                                    {/* Text Area Column */}
-                                                    <div className={styles.swotRight}>
-                                                        <textarea
-                                                            className={styles.textarea}
-                                                            style={{ flex: 1, minHeight: '150px', resize: 'vertical' }}
-                                                            value={selection.textValue}
-                                                            onChange={(e) => handleSwotTextChange(card.id, e.target.value)}
-                                                            placeholder="Select options from the left or type here..."
-                                                        />
+                                                    {/* Right Column: Options */}
+                                                    <div className={styles.roomCardRight}>
+                                                        <div className={styles.roomOptionsBox}>
+                                                            <div className={styles.roomOptionsList}>
+                                                                {template?.options.map(opt => (
+                                                                    <label key={opt.id} className={styles.roomOptionItem}>
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            className={styles.roomCheckbox}
+                                                                            checked={room.selectedOptions.includes(opt.label)}
+                                                                            onChange={() => handleRoomOptionInfoToggle(idx, opt.value, opt.label)}
+                                                                        />
+                                                                        <span className={styles.roomOptionText}>{opt.label}</span>
+                                                                    </label>
+                                                                ))}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         );
                                     })}
                                 </div>
-                            )}
+                            </div>
+                        )}
+
+                        {/* Footer Actions */}
+                        <div className={styles.footer}>
+                            <button className={styles.secondaryBtn} onClick={() => router.push('/dashboard')}>Cancel</button>
+                            <button className={styles.primaryBtn} onClick={handleNext}>Next: Meta Info &rarr;</button>
                         </div>
-                    )}
-
-                    {activeTab === 'market-value' && (
-                        <div className={styles.card}>
-                            <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-4">
-                                <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Market Value</h2>
-                                <button className={styles.primaryBtn} onClick={handleUpdateMarketValueToReport}>
-                                    Update To Report
-                                </button>
-                            </div>
-
-                            <div className={styles.marketValueContainer}>
-                                {/* Market Value Input Card */}
-                                <div className={styles.marketValueCard}>
-                                    <h3 className={styles.marketValueCardHeader}>Market Value</h3>
-
-                                    <div className={styles.marketValueGrid}>
-                                        <div className={styles.marketValueInputGroup}>
-                                            <label className={styles.marketValueLabel}>Market Value ($)</label>
-                                            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                                                <input
-                                                    className={styles.marketValueInput}
-                                                    placeholder="560000"
-                                                    value={mvInput}
-                                                    onChange={(e) => setMvInput(e.target.value)}
-                                                />
-                                                <button className={styles.marketValueButton} onClick={handleMvUpdate}>
-                                                    Update
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className={styles.marketValueInputGroup}>
-                                            <label className={styles.marketValueLabel}>
-                                                Formatted Value
-                                                <span
-                                                    className={styles.marketValuePlaceholder}
-                                                    title={phMarketValue}
-                                                >
-                                                    P
-                                                </span>
-                                            </label>
-                                            <input
-                                                className={styles.marketValueInput}
-                                                value={mvFormatted}
-                                                readOnly
-                                            />
-                                        </div>
-
-                                        <div className={styles.marketValueInputGroup}>
-                                            <label className={styles.marketValueLabel}>
-                                                Narrative
-                                                <span
-                                                    className={styles.marketValuePlaceholder}
-                                                    title={phMarketValuation}
-                                                >
-                                                    P
-                                                </span>
-                                            </label>
-                                            <div className={styles.marketValueNarrative}>
-                                                {mvFormatted && <span className={styles.marketValueNarrativeAmount}>{mvFormatted}</span>}
-                                                {mvNarrative && <span className={styles.marketValueNarrativeText}>{mvNarrative}</span>}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Valuation Breakdown Card */}
-                                <div className={styles.marketValueCard}>
-                                    <h3 className={styles.marketValueCardHeader}>Valuation Breakdown</h3>
-
-                                    <div className={styles.marketValueGrid}>
-                                        <div className={styles.marketValueInputGroup}>
-                                            <label className={styles.marketValueLabel}>
-                                                Improvements
-                                                <span
-                                                    className={styles.marketValuePlaceholder}
-                                                    title={phImprovement}
-                                                >
-                                                    P
-                                                </span>
-                                            </label>
-                                            <input
-                                                className={styles.marketValueInput}
-                                                placeholder="130,000"
-                                                value={bdImprovements}
-                                                onChange={(e) => setBdImprovements(e.target.value)}
-                                            />
-                                        </div>
-
-                                        <div className={styles.marketValueInputGroup}>
-                                            <label className={styles.marketValueLabel}>
-                                                Land
-                                                <span
-                                                    className={styles.marketValuePlaceholder}
-                                                    title={phLand}
-                                                >
-                                                    P
-                                                </span>
-                                            </label>
-                                            <input
-                                                className={styles.marketValueInput}
-                                                placeholder="340,000"
-                                                value={bdLand}
-                                                onChange={(e) => setBdLand(e.target.value)}
-                                            />
-                                        </div>
-
-                                        <div className={styles.marketValueInputGroup}>
-                                            <label className={styles.marketValueLabel}>
-                                                Chattels
-                                                <span
-                                                    className={styles.marketValuePlaceholder}
-                                                    title={phChattels}
-                                                >
-                                                    P
-                                                </span>
-                                            </label>
-                                            <input
-                                                className={styles.marketValueInput}
-                                                placeholder="80,000"
-                                                value={bdChattels}
-                                                onChange={(e) => setBdChattels(e.target.value)}
-                                            />
-                                        </div>
-
-                                        <div className={styles.marketValueInputGroup}>
-                                            <label className={styles.marketValueLabel}>
-                                                Total
-                                                <span
-                                                    className={styles.marketValuePlaceholder}
-                                                    title={phTotalMarket}
-                                                >
-                                                    P
-                                                </span>
-                                            </label>
-                                            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                                                <input
-                                                    className={styles.marketValueInput}
-                                                    value={bdTotal}
-                                                    readOnly
-                                                />
-                                                {bdMatch === 'equal' && (
-                                                    <span className={`${styles.marketValueStatus} ${styles.marketValueStatusSuccess}`}>
-                                                        ✓ Equal
-                                                    </span>
-                                                )}
-                                                {bdMatch === 'error' && (
-                                                    <span className={`${styles.marketValueStatus} ${styles.marketValueStatusError}`}>
-                                                        ✗ Error
-                                                    </span>
-                                                )}
-                                                <button className={styles.marketValueButtonSecondary} onClick={handleBdSum}>
-                                                    Sum & Check
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Statutory Valuation Card */}
-                                <div className={`${styles.marketValueCard} ${styles.marketValueStatutory}`}>
-                                    <div className={styles.marketValueStatutoryHeader}>
-                                        <h3 className={styles.marketValueStatutoryTitle}>Statutory Valuation</h3>
-                                        <span className={styles.marketValueStatutoryAddress}>
-                                            {report?.baseInfo?.fields?.['address']?.value || "7/20 William Souter Street, Forrest Hill, Auckland"}
-                                        </span>
-                                        <button className={styles.marketValueStatutoryButton} onClick={handleCopyOpenAddress}>
-                                            Copy & Open
-                                        </button>
-                                    </div>
-
-                                    <div className={styles.marketValueGrid}>
-                                        <div className={styles.marketValueInputGroup}>
-                                            <label className={styles.marketValueLabel}>
-                                                Land
-                                                <span
-                                                    className={styles.marketValuePlaceholder}
-                                                    title={phStatLand}
-                                                >
-                                                    P
-                                                </span>
-                                            </label>
-                                            <input
-                                                className={styles.marketValueInput}
-                                                placeholder="340,000"
-                                                value={statLand}
-                                                onChange={(e) => setStatLand(e.target.value)}
-                                            />
-                                        </div>
-
-                                        <div className={styles.marketValueInputGroup}>
-                                            <label className={styles.marketValueLabel}>
-                                                Improvement
-                                                <span
-                                                    className={styles.marketValuePlaceholder}
-                                                    title={phStatImprovements}
-                                                >
-                                                    P
-                                                </span>
-                                            </label>
-                                            <input
-                                                className={styles.marketValueInput}
-                                                placeholder="130,000"
-                                                value={statImprovements}
-                                                onChange={(e) => setStatImprovements(e.target.value)}
-                                            />
-                                        </div>
-
-                                        <div className={styles.marketValueInputGroup}>
-                                            <label className={styles.marketValueLabel}>
-                                                Rating
-                                                <span
-                                                    className={styles.marketValuePlaceholder}
-                                                    title={phStatRating}
-                                                >
-                                                    P
-                                                </span>
-                                            </label>
-                                            <input
-                                                className={styles.marketValueInput}
-                                                placeholder="550,000"
-                                                value={statRating}
-                                                onChange={(e) => setStatRating(e.target.value)}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === 'construct-chattels' && (
-                        <div className={styles.card}>
-                            <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
-                                <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Construct / Chattels Data</h2>
-                                <div style={{ display: 'flex', gap: '1rem' }}>
-                                    <button className={styles.secondaryBtn} onClick={handleLoadConstructChattels} disabled={ccLoading}>
-                                        {ccLoading ? "Loading..." : "Load From Settings"}
-                                    </button>
-                                    <button className={styles.primaryBtn} onClick={handleUpdateCCToReport} disabled={!constructData && !chattelsData}>
-                                        Update to Report
-                                    </button>
-                                </div>
-                            </div>
-
-                            {!constructData && !chattelsData ? (
-                                <div className="flex items-center justify-center h-20 text-gray-400">
-                                    Click "Load From Settings" to fetch Construct & Chattels data.
-                                </div>
-                            ) : (
-                                <div>
-                                    {/* Construct Card */}
-                                    <div className={styles.ccCard}>
-                                        <div className={styles.ccHeaderRow}>
-                                            <h3 className={styles.ccTitle}>Construct Card</h3>
-                                        </div>
-
-                                        <div className={styles.ccGrid}>
-                                            {/* Left Column: Construct Element List */}
-                                            <div className={styles.ccColumnLeft}>
-                                                <div className={styles.ccSubHeader}>
-                                                    <span className={styles.ccLabel}>Construct Element</span>
-                                                </div>
-                                                <div className={styles.optionList}>
-                                                    {constructData?.elements?.map(opt => (
-                                                        <label key={opt.id} className="flex items-start gap-2 cursor-pointer p-1 hover:bg-gray-50 rounded transition-colors text-sm">
-                                                            <input
-                                                                type="checkbox"
-                                                                className="mt-1"
-                                                                checked={selectedConstruct.includes(opt.id)}
-                                                                onChange={() => toggleSelection('construct', opt.id)}
-                                                            />
-                                                            <span className="text-gray-700">{opt.label}</span>
-                                                        </label>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            {/* Right Column: Interior + Description */}
-                                            <div className={styles.ccColumnRight}>
-                                                <div className={styles.ccSubHeader}>
-                                                    <span className={styles.ccLabel}>Interior Element</span>
-                                                </div>
-                                                <div className={styles.optionList} style={{ marginBottom: '1rem', maxHeight: '120px' }}>
-                                                    {constructData?.interiorElements?.map(opt => (
-                                                        <label key={opt.id} className="flex items-start gap-2 cursor-pointer p-1 hover:bg-gray-50 rounded transition-colors text-sm">
-                                                            <input
-                                                                type="checkbox"
-                                                                className="mt-1"
-                                                                checked={selectedInterior.includes(opt.id)}
-                                                                onChange={() => toggleSelection('interior', opt.id)}
-                                                            />
-                                                            <span className="text-gray-700">{opt.label}</span>
-                                                        </label>
-                                                    ))}
-                                                </div>
-
-                                                <div className={styles.ccDescriptionHeader}>
-                                                    <span className={styles.ccDescriptionTitle}>Construct Description</span>
-                                                    <span
-                                                        className={styles.ccPlaceholder}
-                                                        title={constructData?.replaceholder}
-                                                    >
-                                                        P
-                                                    </span>
-                                                </div>
-                                                <textarea
-                                                    className={styles.ccTextarea}
-                                                    value={constructText}
-                                                    onChange={(e) => setConstructText(e.target.value)}
-                                                    placeholder="Text will be generated here..."
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Chattels Card */}
-                                    <div className={styles.ccCard}>
-                                        <div className={styles.ccHeaderRow}>
-                                            <h3 className={styles.ccTitle}>Chattels Card</h3>
-                                        </div>
-
-                                        <div className={styles.ccGrid}>
-                                            {/* Left Column: Chattels List */}
-                                            <div className={styles.ccColumnLeft}>
-                                                <div className={styles.ccSubHeader}>
-                                                    <span className={styles.ccLabel}>Chattels List</span>
-                                                </div>
-                                                <div className={styles.optionList}>
-                                                    {chattelsData?.list?.map(opt => (
-                                                        <label key={opt.id} className="flex items-start gap-2 cursor-pointer p-1 hover:bg-gray-50 rounded transition-colors text-sm">
-                                                            <input
-                                                                type="checkbox"
-                                                                className="mt-1"
-                                                                checked={selectedChattels.includes(opt.id)}
-                                                                onChange={() => toggleSelection('chattels', opt.id)}
-                                                            />
-                                                            <span className="text-gray-700">{opt.label}</span>
-                                                        </label>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            {/* Right Column: Description Only */}
-                                            <div className={styles.ccColumnRight}>
-                                                <div className={styles.ccDescriptionHeader}>
-                                                    <span className={styles.ccDescriptionTitle}>Chattels Description</span>
-                                                    <span
-                                                        className={styles.ccPlaceholder}
-                                                        title={chattelsData?.replaceholder}
-                                                    >
-                                                        P
-                                                    </span>
-                                                </div>
-                                                <textarea
-                                                    className={styles.ccTextarea}
-                                                    value={chattelsText}
-                                                    onChange={(e) => setChattelsText(e.target.value)}
-                                                    placeholder="Text will be generated here..."
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {activeTab === 'room-option' && (
-                        <div className={styles.card}>
-                            <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-6">
-                                <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>Room Option</h2>
-                                <div style={{ display: 'flex', gap: '1rem' }}>
-                                    <button className={styles.secondaryBtn} onClick={handleLoadRoomSettings} disabled={roomLoading}>
-                                        {roomLoading ? "Loading..." : "Load From Settings"}
-                                    </button>
-                                    <button className={styles.primaryBtn} onClick={handleUpdateRoomToReport}>
-                                        Update to Report
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Add Room Card */}
-                            {roomTemplates.length > 0 && (
-                                <div className={styles.addRoomCard}>
-                                    <h3 className={styles.addRoomTitle}>Add Room</h3>
-
-                                    <div className={styles.addRoomControls}>
-                                        <div className={styles.selectWrapper}>
-                                            <select
-                                                className={styles.roomSelect}
-                                                value={selectedRoomTemplate}
-                                                onChange={(e) => setSelectedRoomTemplate(e.target.value)}
-                                            >
-                                                {roomTemplates.map(t => (
-                                                    <option key={t.id} value={t.id}>{t.name}</option>
-                                                ))}
-                                            </select>
-                                            <div className={styles.selectIcon}>
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                                            </div>
-                                        </div>
-                                        <button
-                                            className={styles.addRoomBtn}
-                                            onClick={handleAddRoom}
-                                        >
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-                                            Add
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Added Rooms List */}
-                            <div className={styles.roomsList}>
-                                {addedRooms.map((room, idx) => {
-                                    const template = roomTemplates.find(t => t.id === room.templateId);
-                                    return (
-                                        <div key={room.id} className={styles.roomCard}>
-                                            {/* Card Header */}
-                                            <div className={styles.roomCardHeader}>
-                                                <h3 className={styles.roomCardTitle}>Room Option {room.id}</h3>
-                                                <button
-                                                    onClick={() => handleDeleteRoom(idx)}
-                                                    className={styles.deleteRoomBtn}
-                                                    title="Remove Room"
-                                                >
-                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                                </button>
-                                            </div>
-
-                                            <div className={styles.roomCardBody}>
-                                                {/* Left Column: Inputs */}
-                                                <div className={styles.roomCardLeft}>
-                                                    <div className={styles.roomInputGroup}>
-                                                        <div className={styles.roomInputHeader}>
-                                                            <label className={styles.roomInputLabel}>Room Name</label>
-                                                            <span className={styles.roomPlaceholder}>
-                                                                {room.placeholderName}
-                                                            </span>
-                                                        </div>
-                                                        <input
-                                                            className={styles.roomInput}
-                                                            value={room.roomName}
-                                                            onChange={(e) => {
-                                                                const newRooms = [...addedRooms];
-                                                                newRooms[idx].roomName = e.target.value;
-                                                                setAddedRooms(newRooms);
-                                                            }}
-                                                        />
-                                                    </div>
-
-                                                    <div className={styles.roomInputGroup}>
-                                                        <div className={styles.roomInputHeader}>
-                                                            <label className={styles.roomInputLabel}>Room Option Text</label>
-                                                            <span className={styles.roomPlaceholder}>
-                                                                {room.placeholderText}
-                                                            </span>
-                                                        </div>
-                                                        <textarea
-                                                            className={styles.roomTextarea}
-                                                            value={room.textValue}
-                                                            readOnly
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                {/* Right Column: Options */}
-                                                <div className={styles.roomCardRight}>
-                                                    <div className={styles.roomOptionsBox}>
-                                                        <div className={styles.roomOptionsList}>
-                                                            {template?.options.map(opt => (
-                                                                <label key={opt.id} className={styles.roomOptionItem}>
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        className={styles.roomCheckbox}
-                                                                        checked={room.selectedOptions.includes(opt.label)}
-                                                                        onChange={() => handleRoomOptionInfoToggle(idx, opt.value, opt.label)}
-                                                                    />
-                                                                    <span className={styles.roomOptionText}>{opt.label}</span>
-                                                                </label>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Footer Actions */}
-                    <div className={styles.footer}>
-                        <button className={styles.secondaryBtn} onClick={() => router.push('/dashboard')}>Cancel</button>
-                        <button className={styles.primaryBtn} onClick={handleNext}>Next: Meta Info &rarr;</button>
                     </div>
-                </div>
-            )
-            }
-        </div >
+                )
+                }
+            </div>
+        </>
     );
 }

@@ -6,8 +6,10 @@ import { getPrompt, updatePrompt, AIPrompt, initializePDFExtractPrompt } from "@
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import styles from "./page.module.css";
+import { useCustomAlert } from "@/components/CustomAlert";
 
 export default function PDFExtractTestPage() {
+    const { showAlert, AlertComponent } = useCustomAlert();
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
     const [promptData, setPromptData] = useState<AIPrompt | null>(null);
@@ -52,10 +54,10 @@ export default function PDFExtractTestPage() {
         setSaving(true);
         try {
             await updatePrompt(user.uid, "pdf_extract", promptData);
-            alert("AI Settings saved successfully!");
+            showAlert("AI Settings saved successfully!");
         } catch (error) {
             console.error("Error saving settings:", error);
-            alert("Failed to save settings.");
+            showAlert("Failed to save settings.");
         } finally {
             setSaving(false);
         }
@@ -63,7 +65,7 @@ export default function PDFExtractTestPage() {
 
     const handleRunTest = async () => {
         if (!titleFile || !briefFile || !promptData) {
-            alert("Please upload both files and ensure prompt settings are loaded.");
+            showAlert("Please upload both files and ensure prompt settings are loaded.");
             return;
         }
 
@@ -114,6 +116,8 @@ export default function PDFExtractTestPage() {
     }
 
     return (
+        <>
+        {AlertComponent}
         <div className={styles.container}>
             {/* Header */}
             <div className={styles.header}>
@@ -226,5 +230,7 @@ export default function PDFExtractTestPage() {
                 </div>
             </div>
         </div>
+    
+        </>
     );
 }

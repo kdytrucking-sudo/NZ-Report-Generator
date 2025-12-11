@@ -12,6 +12,8 @@ import {
     StructureField,
     ContentSection
 } from "@/lib/firestore-report-structure";
+import { useCustomAlert } from "@/components/CustomAlert";
+import { useCustomConfirm } from "@/components/CustomConfirm";
 
 type Tab = "meta" | "basic" | "content";
 
@@ -25,6 +27,8 @@ const EMPTY_FIELD: StructureField = {
 };
 
 export default function ReportStructureSettings() {
+    const { showAlert, AlertComponent } = useCustomAlert();
+    const { showConfirm, ConfirmComponent } = useCustomConfirm();
     const [user, setUser] = useState<any>(null);
     const [activeTab, setActiveTab] = useState<Tab>("meta");
     const [loading, setLoading] = useState(true);
@@ -88,10 +92,10 @@ export default function ReportStructureSettings() {
                 setContentSections(sanitized);
                 await saveContentStructure(user.uid, sanitized);
             }
-            alert("Structure saved successfully!");
+            showAlert("Structure saved successfully!");
         } catch (error) {
             console.error(error);
-            alert("Failed to save structure.");
+            showAlert("Failed to save structure.");
         } finally {
             setSaving(false);
         }
@@ -116,8 +120,9 @@ export default function ReportStructureSettings() {
         setList([...list, { ...EMPTY_FIELD, id: newId }]);
     };
 
-    const removeField = (list: StructureField[], setList: (l: StructureField[]) => void, index: number) => {
-        if (!confirm("Delete this field?")) return;
+    const removeField = async (list: StructureField[], setList: (l: StructureField[]) => void, index: number) => {
+        const confirmed = await showConfirm("Delete this field?");
+        if (!confirmed) return;
         const newList = list.filter((_, i) => i !== index);
         setList(newList);
     };
@@ -139,8 +144,9 @@ export default function ReportStructureSettings() {
         setContentSections([...contentSections, { id: newId, title: "New Section", fields: [] }]);
     };
 
-    const removeSection = (index: number) => {
-        if (!confirm("Delete this entire section?")) return;
+    const removeSection = async (index: number) => {
+        const confirmed = await showConfirm("Delete this entire section?");
+        if (!confirmed) return;
         const newList = contentSections.filter((_, i) => i !== index);
         setContentSections(newList);
     };
@@ -167,8 +173,9 @@ export default function ReportStructureSettings() {
         setContentSections(newSections);
     };
 
-    const removeSectionField = (sectionIndex: number, fieldIndex: number) => {
-        if (!confirm("Delete this field?")) return;
+    const removeSectionField = async (sectionIndex: number, fieldIndex: number) => {
+        const confirmed = await showConfirm("Delete this field?");
+        if (!confirmed) return;
         const newSections = [...contentSections];
         newSections[sectionIndex].fields = newSections[sectionIndex].fields.filter((_, i) => i !== fieldIndex);
         setContentSections(newSections);
@@ -301,129 +308,133 @@ export default function ReportStructureSettings() {
     if (loading) return <div className="p-8">Loading structure...</div>;
 
     return (
-        <div className={styles.container}>
-            <div className={styles.header}>
-                <h1 className={styles.title}>Report Structure Settings</h1>
-                <p className={styles.subtitle}>Define the fields and sections for your reports.</p>
-            </div>
+        <>
+            {AlertComponent}
+            {ConfirmComponent}
+            <div className={styles.container}>
+                <div className={styles.header}>
+                    <h1 className={styles.title}>Report Structure Settings</h1>
+                    <p className={styles.subtitle}>Define the fields and sections for your reports.</p>
+                </div>
 
-            <div className={styles.tabs}>
-                <button
-                    className={`${styles.tabBtn} ${activeTab === "meta" ? styles.activeTab : ""}`}
-                    onClick={() => setActiveTab("meta")}
-                >
-                    Meta Information
-                </button>
-                <button
-                    className={`${styles.tabBtn} ${activeTab === "basic" ? styles.activeTab : ""}`}
-                    onClick={() => setActiveTab("basic")}
-                >
-                    Basic Information
-                </button>
-                <button
-                    className={`${styles.tabBtn} ${activeTab === "content" ? styles.activeTab : ""}`}
-                    onClick={() => setActiveTab("content")}
-                >
-                    Report Content
-                </button>
-            </div>
+                <div className={styles.tabs}>
+                    <button
+                        className={`${styles.tabBtn} ${activeTab === "meta" ? styles.activeTab : ""}`}
+                        onClick={() => setActiveTab("meta")}
+                    >
+                        Meta Information
+                    </button>
+                    <button
+                        className={`${styles.tabBtn} ${activeTab === "basic" ? styles.activeTab : ""}`}
+                        onClick={() => setActiveTab("basic")}
+                    >
+                        Basic Information
+                    </button>
+                    <button
+                        className={`${styles.tabBtn} ${activeTab === "content" ? styles.activeTab : ""}`}
+                        onClick={() => setActiveTab("content")}
+                    >
+                        Report Content
+                    </button>
+                </div>
 
-            <div className={styles.fieldsContainer}>
-                {activeTab === "meta" && (
-                    <div className={styles.sectionCard}>
-                        {renderHeaderRow()}
-                        {metaFields.map((field, index) =>
-                            renderFieldRow(
-                                field,
-                                index,
-                                metaFields.length,
-                                (k, v) => updateField(metaFields, setMetaFields, index, k, v),
-                                () => removeField(metaFields, setMetaFields, index),
-                                () => moveField(metaFields, setMetaFields, index, 'up'),
-                                () => moveField(metaFields, setMetaFields, index, 'down')
-                            )
-                        )}
-                        <div className="p-4">
-                            <button className={styles.addBtn} onClick={() => addField(metaFields, setMetaFields)}>
-                                + Add Meta Field
-                            </button>
+                <div className={styles.fieldsContainer}>
+                    {activeTab === "meta" && (
+                        <div className={styles.sectionCard}>
+                            {renderHeaderRow()}
+                            {metaFields.map((field, index) =>
+                                renderFieldRow(
+                                    field,
+                                    index,
+                                    metaFields.length,
+                                    (k, v) => updateField(metaFields, setMetaFields, index, k, v),
+                                    () => removeField(metaFields, setMetaFields, index),
+                                    () => moveField(metaFields, setMetaFields, index, 'up'),
+                                    () => moveField(metaFields, setMetaFields, index, 'down')
+                                )
+                            )}
+                            <div className="p-4">
+                                <button className={styles.addBtn} onClick={() => addField(metaFields, setMetaFields)}>
+                                    + Add Meta Field
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {activeTab === "basic" && (
-                    <div className={styles.sectionCard}>
-                        {renderHeaderRow()}
-                        {basicFields.map((field, index) =>
-                            renderFieldRow(
-                                field,
-                                index,
-                                basicFields.length,
-                                (k, v) => updateField(basicFields, setBasicFields, index, k, v),
-                                () => removeField(basicFields, setBasicFields, index),
-                                () => moveField(basicFields, setBasicFields, index, 'up'),
-                                () => moveField(basicFields, setBasicFields, index, 'down')
-                            )
-                        )}
-                        <div className="p-4">
-                            <button className={styles.addBtn} onClick={() => addField(basicFields, setBasicFields)}>
-                                + Add Basic Field
-                            </button>
+                    {activeTab === "basic" && (
+                        <div className={styles.sectionCard}>
+                            {renderHeaderRow()}
+                            {basicFields.map((field, index) =>
+                                renderFieldRow(
+                                    field,
+                                    index,
+                                    basicFields.length,
+                                    (k, v) => updateField(basicFields, setBasicFields, index, k, v),
+                                    () => removeField(basicFields, setBasicFields, index),
+                                    () => moveField(basicFields, setBasicFields, index, 'up'),
+                                    () => moveField(basicFields, setBasicFields, index, 'down')
+                                )
+                            )}
+                            <div className="p-4">
+                                <button className={styles.addBtn} onClick={() => addField(basicFields, setBasicFields)}>
+                                    + Add Basic Field
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {activeTab === "content" && (
-                    <div className="flex flex-col gap-6">
-                        <div className={styles.toolbar}>
-                            <button className={styles.addBtn} onClick={addSection}>
-                                + Add New Section
-                            </button>
-                        </div>
+                    {activeTab === "content" && (
+                        <div className="flex flex-col gap-6">
+                            <div className={styles.toolbar}>
+                                <button className={styles.addBtn} onClick={addSection}>
+                                    + Add New Section
+                                </button>
+                            </div>
 
-                        {contentSections.map((section, sIndex) => (
-                            <div key={section.id} className={styles.sectionCard}>
-                                <div className={styles.sectionHeader}>
-                                    <div className="flex items-center gap-2 flex-grow">
-                                        <input
-                                            className={`${styles.input} font-bold`}
-                                            style={{ width: '300px' }}
-                                            value={section.title}
-                                            onChange={(e) => updateSectionTitle(sIndex, e.target.value)}
-                                        />
+                            {contentSections.map((section, sIndex) => (
+                                <div key={section.id} className={styles.sectionCard}>
+                                    <div className={styles.sectionHeader}>
+                                        <div className="flex items-center gap-2 flex-grow">
+                                            <input
+                                                className={`${styles.input} font-bold`}
+                                                style={{ width: '300px' }}
+                                                value={section.title}
+                                                onChange={(e) => updateSectionTitle(sIndex, e.target.value)}
+                                            />
+                                        </div>
+                                        <div className={styles.sectionToolbar}>
+                                            <button className={`${styles.iconBtn} ${styles.deleteBtn}`} onClick={() => removeSection(sIndex)}>
+                                                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div className={styles.sectionToolbar}>
-                                        <button className={`${styles.iconBtn} ${styles.deleteBtn}`} onClick={() => removeSection(sIndex)}>
-                                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    {renderHeaderRow()}
+                                    {section.fields.map((field, fIndex) =>
+                                        renderFieldRow(
+                                            field,
+                                            fIndex,
+                                            section.fields.length,
+                                            (k, v) => updateSectionField(sIndex, fIndex, k, v),
+                                            () => removeSectionField(sIndex, fIndex),
+                                            () => moveSectionField(sIndex, fIndex, 'up'),
+                                            () => moveSectionField(sIndex, fIndex, 'down')
+                                        )
+                                    )}
+                                    <div className="p-4">
+                                        <button className={styles.addBtn} onClick={() => addSectionField(sIndex)}>
+                                            + Add Field to {section.title}
                                         </button>
                                     </div>
                                 </div>
-                                {renderHeaderRow()}
-                                {section.fields.map((field, fIndex) =>
-                                    renderFieldRow(
-                                        field,
-                                        fIndex,
-                                        section.fields.length,
-                                        (k, v) => updateSectionField(sIndex, fIndex, k, v),
-                                        () => removeSectionField(sIndex, fIndex),
-                                        () => moveSectionField(sIndex, fIndex, 'up'),
-                                        () => moveSectionField(sIndex, fIndex, 'down')
-                                    )
-                                )}
-                                <div className="p-4">
-                                    <button className={styles.addBtn} onClick={() => addSectionField(sIndex)}>
-                                        + Add Field to {section.title}
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
-            <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>
-                {saving ? "Saving..." : "Save Changes"}
-            </button>
-        </div>
+                <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>
+                    {saving ? "Saving..." : "Save Changes"}
+                </button>
+            </div>
+        </>
     );
 }

@@ -8,11 +8,13 @@ import { getReport, updateReport, syncReportFields, Report, ReportField } from "
 import { formatDateForInput, formatDateForStorage } from "@/lib/date-utils";
 import styles from "./page.module.css";
 import Link from "next/link";
+import { useCustomAlert } from "@/components/CustomAlert";
 
 export default function ReportMetaPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const reportId = searchParams.get("id");
+    const { showAlert, AlertComponent } = useCustomAlert();
 
     const [user, setUser] = useState<any>(null);
     const [report, setReport] = useState<Report | null>(null);
@@ -73,7 +75,7 @@ export default function ReportMetaPage() {
             router.push(`/report/basic?id=${reportId}`);
         } catch (error) {
             console.error("Error saving meta:", error);
-            alert("Failed to save changes.");
+            showAlert("Failed to save changes.");
             setSaving(false);
         }
     };
@@ -199,28 +201,31 @@ export default function ReportMetaPage() {
     );
 
     return (
-        <div className={styles.container}>
-            <div className={styles.header}>
-                <h1 className={styles.title}>Report Metadata</h1>
-                <p className={styles.subtitle}>Enter high-level details for this job.</p>
-            </div>
-
-            <div className={styles.formCard}>
-                <div className={styles.columnsContainer}>
-                    {renderColumnFields(leftKeys, styles.leftColumn)}
-                    {renderColumnFields(rightKeys, styles.rightColumn)}
+        <>
+            {AlertComponent}
+            <div className={styles.container}>
+                <div className={styles.header}>
+                    <h1 className={styles.title}>Report Metadata</h1>
+                    <p className={styles.subtitle}>Enter high-level details for this job.</p>
                 </div>
 
-                <div className={styles.footer}>
-                    <Link href="/dashboard" className={styles.backBtn}>
-                        Cancel
-                    </Link>
-                    <button className={styles.nextBtn} onClick={handleSaveNext} disabled={saving}>
-                        {saving ? "Saving..." : "Save & Next"}
-                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                    </button>
+                <div className={styles.formCard}>
+                    <div className={styles.columnsContainer}>
+                        {renderColumnFields(leftKeys, styles.leftColumn)}
+                        {renderColumnFields(rightKeys, styles.rightColumn)}
+                    </div>
+
+                    <div className={styles.footer}>
+                        <Link href="/dashboard" className={styles.backBtn}>
+                            Cancel
+                        </Link>
+                        <button className={styles.nextBtn} onClick={handleSaveNext} disabled={saving}>
+                            {saving ? "Saving..." : "Save & Next"}
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
+        </>
     );
 }

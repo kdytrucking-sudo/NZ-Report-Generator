@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { getSingleChoiceCards, saveSingleChoiceCard, deleteSingleChoiceCard, SingleChoiceCard, SingleChoiceOption } from "@/lib/firestore-single-choice";
+import { useCustomConfirm } from "@/components/CustomConfirm";
 import styles from "./page.module.css";
+import { useCustomAlert } from "@/components/CustomAlert";
 
 // Helper component for SVG icons
 const TrashIcon = () => (
@@ -23,6 +25,8 @@ const PlusIcon = () => (
 );
 
 export default function SingleChoiceSettingsPage() {
+    const { showConfirm, ConfirmComponent } = useCustomConfirm();
+    const { showAlert, AlertComponent } = useCustomAlert();
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -61,7 +65,8 @@ export default function SingleChoiceSettingsPage() {
 
     const handleDeleteCard = async (index: number) => {
         const card = cards[index];
-        if (confirm("Are you sure you want to delete this entire card?")) {
+        const confirmed = await showConfirm("Are you sure you want to delete this entire card?");
+        if (confirmed) {
             if (card.id) {
                 // If it exists in DB, delete it
                 await deleteSingleChoiceCard(user.uid, card.id);
@@ -83,7 +88,7 @@ export default function SingleChoiceSettingsPage() {
     const handleSaveCard = async (index: number) => {
         const card = cards[index];
         if (!card.name.trim()) {
-            alert("Card Name is required.");
+            showAlert("Card Name is required.");
             return;
         }
         try {
@@ -93,11 +98,11 @@ export default function SingleChoiceSettingsPage() {
                 const newCards = [...cards];
                 newCards[index].id = newId;
                 setCards(newCards);
-                alert("Card saved successfully!");
+                showAlert("Card saved successfully!");
             }
         } catch (e) {
             console.error(e);
-            alert("Failed to save card.");
+            showAlert("Failed to save card.");
         }
     };
 
@@ -130,105 +135,110 @@ export default function SingleChoiceSettingsPage() {
     }
 
     return (
-        <div className={styles.container}>
-            <div className={styles.header}>
-                <div>
-                    <h1 className={styles.title}>Manage Commentary Options</h1>
-                    <p className={styles.description}>Create and configure cards with multiple selectable text options for report generation.</p>
+        <>
+            {AlertComponent}
+            {ConfirmComponent}
+            <div className={styles.container}>
+                <div className={styles.header}>
+                    <div>
+                        <h1 className={styles.title}>Manage Commentary Options</h1>
+                        <p className={styles.description}>Create and configure cards with multiple selectable text options for report generation.</p>
+                    </div>
+                    <button className={styles.addCardBtn} onClick={handleAddCard}>
+                        <PlusIcon />
+                        Add New Card
+                    </button>
                 </div>
-                <button className={styles.addCardBtn} onClick={handleAddCard}>
-                    <PlusIcon />
-                    Add New Card
-                </button>
-            </div>
 
-            <div className={styles.cardList}>
-                {cards.map((card, cardIndex) => (
-                    <div key={card.id || `temp-${cardIndex}`} className={styles.card}>
-                        <div className={styles.cardHeader}>
-                            <button
-                                className={styles.deleteCardBtn}
-                                onClick={() => handleDeleteCard(cardIndex)}
-                                title="Delete Card"
-                            >
-                                <TrashIcon />
-                            </button>
+                <div className={styles.cardList}>
+                    {cards.map((card, cardIndex) => (
+                        <div key={card.id || `temp-${cardIndex}`} className={styles.card}>
+                            <div className={styles.cardHeader}>
+                                <button
+                                    className={styles.deleteCardBtn}
+                                    onClick={() => handleDeleteCard(cardIndex)}
+                                    title="Delete Card"
+                                >
+                                    <TrashIcon />
+                                </button>
 
-                            <div className={styles.field}>
-                                <label className={styles.label}>Card Name (Database ID)</label>
-                                <input
-                                    className={`${styles.input}`}
-                                    value={card.name}
-                                    onChange={(e) => handleCardChange(cardIndex, "name", e.target.value)}
-                                    placeholder="e.g. Purpose of Valuation"
-                                />
-                            </div>
-
-                            <div className={styles.field}>
-                                <label className={styles.label}>Placeholder</label>
-                                <input
-                                    className={`${styles.input}`}
-                                    value={card.placeholder}
-                                    onChange={(e) => handleCardChange(cardIndex, "placeholder", e.target.value)}
-                                    placeholder="[Replace_Placeholder]"
-                                />
-                            </div>
-                        </div>
-
-                        <div className={styles.cardBody}>
-                            <div className={styles.optionsHeader}>
-                                <span className={styles.label}>Label</span>
-                                <span className={styles.label}>Option Text</span>
-                                <span></span>
-                            </div>
-
-                            {card.options.map((option, optionIndex) => (
-                                <div key={option.id} className={styles.optionRow}>
+                                <div className={styles.field}>
+                                    <label className={styles.label}>Card Name (Database ID)</label>
                                     <input
-                                        className={styles.input}
-                                        value={option.label}
-                                        onChange={(e) => handleOptionChange(cardIndex, optionIndex, "label", e.target.value)}
-                                        placeholder="Label"
+                                        className={`${styles.input}`}
+                                        value={card.name}
+                                        onChange={(e) => handleCardChange(cardIndex, "name", e.target.value)}
+                                        placeholder="e.g. Purpose of Valuation"
                                     />
-                                    <textarea
-                                        className={styles.textarea}
-                                        value={option.value}
-                                        onChange={(e) => handleOptionChange(cardIndex, optionIndex, "value", e.target.value)}
-                                        placeholder="Full option text..."
+                                </div>
+
+                                <div className={styles.field}>
+                                    <label className={styles.label}>Placeholder</label>
+                                    <input
+                                        className={`${styles.input}`}
+                                        value={card.placeholder}
+                                        onChange={(e) => handleCardChange(cardIndex, "placeholder", e.target.value)}
+                                        placeholder="[Replace_Placeholder]"
                                     />
+                                </div>
+                            </div>
+
+                            <div className={styles.cardBody}>
+                                <div className={styles.optionsHeader}>
+                                    <span className={styles.label}>Label</span>
+                                    <span className={styles.label}>Option Text</span>
+                                    <span></span>
+                                </div>
+
+                                {card.options.map((option, optionIndex) => (
+                                    <div key={option.id} className={styles.optionRow}>
+                                        <input
+                                            className={styles.input}
+                                            value={option.label}
+                                            onChange={(e) => handleOptionChange(cardIndex, optionIndex, "label", e.target.value)}
+                                            placeholder="Label"
+                                        />
+                                        <textarea
+                                            className={styles.textarea}
+                                            value={option.value}
+                                            onChange={(e) => handleOptionChange(cardIndex, optionIndex, "value", e.target.value)}
+                                            placeholder="Full option text..."
+                                        />
+                                        <button
+                                            className={styles.deleteOptionBtn}
+                                            onClick={() => handleDeleteOption(cardIndex, optionIndex)}
+                                        >
+                                            <TrashIcon />
+                                        </button>
+                                    </div>
+                                ))}
+
+                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                    <button className={styles.addOptionBtn} onClick={() => handleAddOption(cardIndex)}>
+                                        <PlusIcon />
+                                        Add Option
+                                    </button>
+
                                     <button
-                                        className={styles.deleteOptionBtn}
-                                        onClick={() => handleDeleteOption(cardIndex, optionIndex)}
+                                        className={`btn ${styles.saveCardBtn}`}
+                                        style={{ width: 'auto', marginLeft: 'auto' }}
+                                        onClick={() => handleSaveCard(cardIndex)}
                                     >
-                                        <TrashIcon />
+                                        Save Card
                                     </button>
                                 </div>
-                            ))}
-
-                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                <button className={styles.addOptionBtn} onClick={() => handleAddOption(cardIndex)}>
-                                    <PlusIcon />
-                                    Add Option
-                                </button>
-
-                                <button
-                                    className={`btn ${styles.saveCardBtn}`}
-                                    style={{ width: 'auto', marginLeft: 'auto' }}
-                                    onClick={() => handleSaveCard(cardIndex)}
-                                >
-                                    Save Card
-                                </button>
                             </div>
                         </div>
-                    </div>
-                ))}
+                    ))}
 
-                {cards.length === 0 && !loading && (
-                    <div className="text-center p-8 text-gray-500">
-                        No cards found. Click "Add New Card" to get started.
-                    </div>
-                )}
+                    {cards.length === 0 && !loading && (
+                        <div className="text-center p-8 text-gray-500">
+                            No cards found. Click "Add New Card" to get started.
+                        </div>
+                    )}
+                </div>
             </div>
-        </div>
+
+        </>
     );
 }

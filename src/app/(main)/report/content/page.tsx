@@ -8,11 +8,13 @@ import { getReport, updateReport, syncReportFields, Report, ReportContentSection
 import { formatDateForInput, formatDateForStorage } from "@/lib/date-utils";
 import styles from "./page.module.css";
 import Link from "next/link";
+import { useCustomAlert } from "@/components/CustomAlert";
 
 export default function ReportContentPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const reportId = searchParams.get("id");
+    const { showAlert, AlertComponent } = useCustomAlert();
 
     const [user, setUser] = useState<any>(null);
     const [report, setReport] = useState<Report | null>(null);
@@ -115,7 +117,7 @@ export default function ReportContentPage() {
             router.push(`/report/generate?id=${reportId}`);
         } catch (error) {
             console.error("Error saving content:", error);
-            alert("Failed to save content.");
+            showAlert("Failed to save content.");
         } finally {
             setSaving(false);
         }
@@ -239,49 +241,52 @@ export default function ReportContentPage() {
     );
 
     return (
-        <div className={styles.container}>
-            <div className={styles.header}>
-                <h1 className={styles.title}>Report Content</h1>
-                <p className={styles.subtitle}>Fill in the detailed sections of your report.</p>
-            </div>
+        <>
+            {AlertComponent}
+            <div className={styles.container}>
+                <div className={styles.header}>
+                    <h1 className={styles.title}>Report Content</h1>
+                    <p className={styles.subtitle}>Fill in the detailed sections of your report.</p>
+                </div>
 
-            {/* Tabs */}
-            <div className={styles.tabsContainer}>
-                {sections.map(section => (
-                    <button
-                        key={section.id}
-                        className={`${styles.tabBtn} ${activeSectionId === section.id ? styles.activeTab : ""}`}
-                        onClick={() => setActiveSectionId(section.id)}
-                    >
-                        {section.title}
-                    </button>
-                ))}
-            </div>
+                {/* Tabs */}
+                <div className={styles.tabsContainer}>
+                    {sections.map(section => (
+                        <button
+                            key={section.id}
+                            className={`${styles.tabBtn} ${activeSectionId === section.id ? styles.activeTab : ""}`}
+                            onClick={() => setActiveSectionId(section.id)}
+                        >
+                            {section.title}
+                        </button>
+                    ))}
+                </div>
 
-            {/* Form Area */}
-            <div className={styles.formCard}>
-                {activeSection ? (
-                    <div>
-                        <h2 className="text-xl font-bold mb-4">{activeSection.title}</h2>
-                        <div className={styles.columnsContainer}>
-                            {renderColumnFields(activeSectionId, leftKeys, styles.leftColumn)}
-                            {renderColumnFields(activeSectionId, rightKeys, styles.rightColumn)}
+                {/* Form Area */}
+                <div className={styles.formCard}>
+                    {activeSection ? (
+                        <div>
+                            <h2 className="text-xl font-bold mb-4">{activeSection.title}</h2>
+                            <div className={styles.columnsContainer}>
+                                {renderColumnFields(activeSectionId, leftKeys, styles.leftColumn)}
+                                {renderColumnFields(activeSectionId, rightKeys, styles.rightColumn)}
+                            </div>
                         </div>
-                    </div>
-                ) : (
-                    <div>Select a section</div>
-                )}
+                    ) : (
+                        <div>Select a section</div>
+                    )}
 
-                <div className={styles.footer}>
-                    <Link href={`/report/basic?id=${reportId}`} className={styles.backBtn}>
-                        Previous
-                    </Link>
-                    <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>
-                        {saving ? "Saving..." : "Save to Review"}
-                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                    </button>
+                    <div className={styles.footer}>
+                        <Link href={`/report/basic?id=${reportId}`} className={styles.backBtn}>
+                            Previous
+                        </Link>
+                        <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>
+                            {saving ? "Saving..." : "Save to Review"}
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
+        </>
     );
 }
