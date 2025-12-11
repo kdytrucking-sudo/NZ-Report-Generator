@@ -8,6 +8,7 @@ export interface ImageConfigCard {
     placeholder: string;
     width: number;
     height: number;
+    order?: number; // Display order
     createdAt?: any;
     updatedAt?: any;
 }
@@ -25,7 +26,20 @@ export const getImageConfigs = async (uid: string): Promise<ImageConfigCard[]> =
     try {
         const colRef = collection(db, "users", uid, COLLECTION_NAME);
         const snapshot = await getDocs(colRef);
-        return snapshot.docs.map(doc => doc.data() as ImageConfigCard);
+        const configs = snapshot.docs.map(doc => doc.data() as ImageConfigCard);
+
+        // Sort by order field (ascending), fallback to createdAt if order is not set
+        return configs.sort((a, b) => {
+            const orderA = a.order ?? 999999;
+            const orderB = b.order ?? 999999;
+            if (orderA !== orderB) {
+                return orderA - orderB;
+            }
+            // If orders are equal, sort by createdAt
+            const timeA = a.createdAt?.toMillis?.() ?? 0;
+            const timeB = b.createdAt?.toMillis?.() ?? 0;
+            return timeA - timeB;
+        });
     } catch (error) {
         console.error("Error fetching image configs:", error);
         return [];

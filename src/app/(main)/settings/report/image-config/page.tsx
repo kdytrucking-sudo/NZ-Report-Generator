@@ -67,7 +67,8 @@ export default function ImageConfigPage() {
             name: "New Image",
             placeholder: "{%Image_New}",
             width: 230,
-            height: 160
+            height: 160,
+            order: configs.length // Set order to current length
         };
         setConfigs([...configs, newConfig]);
     };
@@ -81,6 +82,10 @@ export default function ImageConfigPage() {
             }
             const newConfigs = [...configs];
             newConfigs.splice(index, 1);
+            // Update order for remaining configs
+            newConfigs.forEach((cfg, idx) => {
+                cfg.order = idx;
+            });
             setConfigs(newConfigs);
         }
     };
@@ -98,16 +103,41 @@ export default function ImageConfigPage() {
             return;
         }
         try {
-            const newId = await saveImageConfig(user.uid, config);
+            // Set order based on current index
+            const configWithOrder = { ...config, order: index };
+            const newId = await saveImageConfig(user.uid, configWithOrder);
             if (newId) {
                 const newConfigs = [...configs];
                 newConfigs[index].id = newId;
+                newConfigs[index].order = index;
                 setConfigs(newConfigs);
                 showAlert("Saved!");
             }
         } catch (e) {
             console.error(e);
             showAlert("Failed to save.");
+        }
+    };
+
+    const handleSaveAll = async () => {
+        try {
+            // Save all configs with their current order
+            for (let i = 0; i < configs.length; i++) {
+                const config = configs[i];
+                if (config.name.trim()) {
+                    const configWithOrder = { ...config, order: i };
+                    const newId = await saveImageConfig(user.uid, configWithOrder);
+                    if (newId && !config.id) {
+                        configs[i].id = newId;
+                    }
+                    configs[i].order = i;
+                }
+            }
+            setConfigs([...configs]);
+            showAlert("All configurations saved!");
+        } catch (e) {
+            console.error(e);
+            showAlert("Failed to save all.");
         }
     };
 
@@ -125,10 +155,16 @@ export default function ImageConfigPage() {
                         <h1 className={styles.title}>Manage Image Configurations</h1>
                         <p className={styles.description}>Define reusable image placeholders with their default dimensions.</p>
                     </div>
-                    <button className={styles.addBtn} onClick={handleAdd}>
-                        <PlusIcon />
-                        Add Config
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        <button className={styles.addBtn} onClick={handleSaveAll} style={{ background: '#10b981' }}>
+                            <SaveIcon />
+                            Save All
+                        </button>
+                        <button className={styles.addBtn} onClick={handleAdd}>
+                            <PlusIcon />
+                            Add Config
+                        </button>
+                    </div>
                 </div>
 
                 <div className={styles.grid}>

@@ -64,23 +64,32 @@ export default function ReportDownloadPage() {
             await uploadBytes(storageRef, file);
             const url = await getDownloadURL(storageRef);
 
-            // Update Report in Firestore
-            const currentImages = report?.images || {};
-            const updatedImages = {
-                ...currentImages,
-                [config.name]: {
-                    path: storagePath,
-                    url: url,
-                    name: config.name
-                }
+            // Create the new image entry
+            const newImageEntry = {
+                path: storagePath,
+                url: url,
+                name: config.name
             };
 
-            await updateReport(user.uid, reportId, { images: updatedImages });
+            // Update local state first using functional update to avoid race conditions
+            setReport(prevReport => {
+                if (!prevReport) return prevReport;
 
-            // Update local state
-            if (report) {
-                setReport({ ...report, images: updatedImages });
-            }
+                const updatedImages = {
+                    ...(prevReport.images || {}),
+                    [config.name]: newImageEntry
+                };
+
+                return { ...prevReport, images: updatedImages };
+            });
+
+            // Then update Firestore - use functional approach to get latest state
+            setReport(currentReport => {
+                if (currentReport) {
+                    updateReport(user.uid, reportId, { images: currentReport.images });
+                }
+                return currentReport;
+            });
 
         } catch (error) {
             console.error("Upload failed", error);
@@ -150,117 +159,105 @@ export default function ReportDownloadPage() {
             {AlertComponent}
             {ConfirmComponent}
             <div className={styles.container}>
-                <div className={styles.grid}>
-                    {/* Left Column: Draft Report Download */}
-                    <div className={styles.card}>
-                        <div className={styles.successIcon}>
-                            <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                {/* Top Header: File Download */}
+                <div className={styles.headerBar}>
+                    <div className={styles.fileInfo}>
+                        <div className={styles.fileIcon}>
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                         </div>
+                        <span className={styles.fileName} title={generatedReport?.name}>
+                            {generatedReport?.name || "Draft_Report.docx"}
+                        </span>
+                    </div>
+                    {generatedReport?.url ? (
+                        <a
+                            href={generatedReport.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={styles.downloadBtn}
+                        >
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '0.5rem' }}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            Download
+                        </a>
+                    ) : (
+                        <div className="text-red-500 text-sm">Link unavailable</div>
+                    )}
+                </div>
 
-                        <h1 className={styles.title}>Review Draft</h1>
-                        <p className={styles.subtitle}>Download the text-replaced draft for review.</p>
-
-                        <div className={styles.fileCard}>
-                            <div className={styles.fileIcon}>
-                                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                            </div>
-                            <div className={styles.fileDetails}>
-                                <div className={styles.fileName} title={generatedReport?.name}>
-                                    {generatedReport?.name || "Draft_Report.docx"}
-                                </div>
-                                <div className={styles.fileMeta}>
-                                    {generatedReport?.createdAt ? new Date(generatedReport.createdAt).toLocaleString('en-NZ', { dateStyle: 'medium', timeStyle: 'short' }) : 'Ready'}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className={styles.actions}>
-                            {generatedReport?.url ? (
-                                <a
-                                    href={generatedReport.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={styles.downloadBtn}
-                                >
-                                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '0.5rem' }}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                    Download Draft
-                                </a>
-                            ) : (
-                                <div className="text-red-500 text-sm p-3 bg-red-50 rounded mb-2">
-                                    Link unavailable.
-                                </div>
-                            )}
-
-                            <Link href="/dashboard" className={styles.dashboardBtn}>
-                                Return to Dashboard
-                            </Link>
-                        </div>
+                {/* Image Replacement Section */}
+                <div className={styles.mainCard}>
+                    <div className={styles.cardHeader}>
+                        <h2 className={styles.cardTitle}>Image Replacement</h2>
+                        <p className={styles.cardSubtitle}>Upload images to replace placeholders in the final report.</p>
                     </div>
 
-                    {/* Right Column: Image Replacement */}
-                    <div className={styles.card}>
-                        <h2 className={styles.title} style={{ fontSize: '1.25rem' }}>Image Replacement</h2>
-                        <p className={styles.subtitle}>Upload images to replace placeholders in the final report.</p>
+                    <div className={styles.imageGrid}>
+                        {imageConfigs.length === 0 ? (
+                            <p className="text-sm text-gray-500 text-center col-span-3">No image configurations found in Settings.</p>
+                        ) : (
+                            imageConfigs.map((config) => {
+                                const isUploaded = report.images?.[config.name];
+                                const isUploading = uploadingState[config.id || config.name];
 
-                        <div className={styles.uploadList}>
-                            {imageConfigs.length === 0 ? (
-                                <p className="text-sm text-gray-500 text-center">No image configurations found in Settings.</p>
-                            ) : (
-                                imageConfigs.map((config) => {
-                                    const isUploaded = report.images?.[config.name];
-                                    const isUploading = uploadingState[config.id || config.name];
-
-                                    return (
-                                        <div key={config.id} className={`${styles.uploadItem} ${isUploaded ? styles.uploaded : ''}`}>
-                                            <div className={styles.uploadHeader}>
-                                                <span className={styles.itemLabel}>
-                                                    {config.name}
-                                                    <span className={styles.placeholder}>{config.placeholder}</span>
+                                return (
+                                    <div key={config.id} className={`${styles.imageCard} ${isUploaded ? styles.uploaded : ''}`}>
+                                        <div className={styles.imageCardHeader}>
+                                            <div className={styles.imageName}>
+                                                <span
+                                                    className={styles.placeholderIcon}
+                                                    title={config.placeholder}
+                                                >
+                                                    P
                                                 </span>
-                                                {isUploaded && (
-                                                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                        <span className={`${styles.itemStatus} ${styles.success}`}>
-                                                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ display: 'inline', marginRight: 4 }}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                                            Uploaded
-                                                        </span>
-                                                        <button onClick={() => handleRemoveImage(config.name)} className={styles.removeBtn}>
-                                                            Remove
-                                                        </button>
-                                                    </div>
-                                                )}
+                                                <span>{config.name}</span>
                                             </div>
-
-                                            <div className={styles.fileInputWrapper}>
-                                                <input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    className={styles.uploadInput}
-                                                    onChange={(e) => {
-                                                        if (e.target.files?.[0]) {
-                                                            handleImageUpload(config, e.target.files[0]);
-                                                        }
-                                                    }}
-                                                    disabled={!!isUploading}
-                                                />
-                                                {isUploading && <span className="text-xs text-blue-500">Uploading...</span>}
-                                            </div>
+                                            {isUploaded && (
+                                                <button onClick={() => handleRemoveImage(config.name)} className={styles.removeBtn}>
+                                                    ×
+                                                </button>
+                                            )}
                                         </div>
-                                    );
-                                })
-                            )}
-                        </div>
 
+                                        <div className={styles.uploadArea}>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                className={styles.uploadInput}
+                                                onChange={(e) => {
+                                                    if (e.target.files?.[0]) {
+                                                        handleImageUpload(config, e.target.files[0]);
+                                                    }
+                                                }}
+                                                disabled={!!isUploading}
+                                            />
+                                            {isUploading ? (
+                                                <span className={styles.uploadStatus}>Uploading...</span>
+                                            ) : isUploaded ? (
+                                                <span className={styles.uploadStatus + ' ' + styles.success}>
+                                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ display: 'inline', marginRight: 4 }}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                                    Uploaded
+                                                </span>
+                                            ) : (
+                                                <span className={styles.uploadStatus}>Choose File</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+
+                    <div className={styles.finalizeSection}>
                         <button
-                            className={styles.downloadBtn}
-                            style={{ backgroundColor: canReplace ? '#0f172a' : '#94a3b8' }}
+                            className={styles.finalizeBtn}
                             onClick={handleReplaceImages}
                             disabled={!canReplace || replacing}
                         >
                             {replacing ? "Processing..." : "Replace Images & Finalize"}
-                            {!replacing && <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginLeft: '0.5rem' }}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>}
+                            {!replacing && <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginLeft: '0.5rem' }}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>}
                         </button>
                         {!canReplace && imageConfigs.length > 0 && (
-                            <p className="text-xs text-gray-500 mt-2">Upload at least one image to proceed.</p>
+                            <p className={styles.hint}>Upload at least one image to proceed.</p>
                         )}
                     </div>
                 </div>

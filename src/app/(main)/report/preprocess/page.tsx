@@ -901,21 +901,29 @@ export default function PreprocessPage() {
                                             No data extracted yet. Click "AI Extract Data".
                                         </div>
                                     ) : (
-                                        <div style={{ overflowX: 'auto' }}>
+                                        <div style={{ overflow: 'visible' }}>
                                             <table className={styles.editorTable}>
                                                 <thead>
                                                     <tr>
-                                                        <th>Label</th>
-                                                        <th>Placeholder</th>
-                                                        <th style={{ minWidth: '200px' }}>Value</th>
+                                                        <th style={{ width: '200px' }}>Label</th>
+                                                        <th>Value</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {extractedData.map((row, idx) => (
                                                         <tr key={idx}>
-                                                            <td style={{ verticalAlign: 'top', paddingTop: '0.75rem' }}>{row.label}</td>
-                                                            <td className="font-mono text-xs text-blue-600" style={{ verticalAlign: 'top', paddingTop: '0.75rem' }}>{row.placeholder}</td>
-                                                            <td>
+                                                            <td style={{ width: '200px', verticalAlign: 'top', paddingTop: '0.75rem' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                                    <span
+                                                                        className={styles.placeholderIcon}
+                                                                        title={row.placeholder}
+                                                                    >
+                                                                        P
+                                                                    </span>
+                                                                    <span>{row.label}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td style={{ paddingRight: '0.5rem' }}>
                                                                 {row.displayType === 'textarea' ? (
                                                                     <textarea
                                                                         className={styles.textarea}
