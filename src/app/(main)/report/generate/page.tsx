@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { getReport, Report, ReportField } from "@/lib/firestore-reports";
+import { getReport, Report, ReportField, updateReport } from "@/lib/firestore-reports";
 import { getTemplates, ReportTemplate } from "@/lib/firestore-templates";
 import styles from "./page.module.css";
 import Link from "next/link";
@@ -52,6 +52,19 @@ export default function ReportGeneratePage() {
         return () => unsubscribe();
     }, [reportId, router]);
 
+    const handleBack = async () => {
+        if (!user || !reportId) return;
+
+        try {
+            // Update status to Filling:Content when going back
+            await updateReport(user.uid, reportId, { status: 'Filling:Content' });
+            router.push(`/report/content?id=${reportId}`);
+        } catch (error) {
+            console.error("Error updating status:", error);
+            router.push(`/report/content?id=${reportId}`);
+        }
+    };
+
     const handleGenerate = async () => {
         if (!selectedTemplateId || !user) {
             showAlert("Please select a template.");
@@ -76,7 +89,10 @@ export default function ReportGeneratePage() {
 
             const data = await response.json();
 
-            // Success
+            // Update status to Report:Text_Replaced
+            await updateReport(user.uid, reportId!, { status: 'Report:Text_Replaced' });
+
+            // Success - navigate to download page
             router.push(`/report/download?id=${reportId}`);
 
         } catch (error: any) {
@@ -168,7 +184,7 @@ export default function ReportGeneratePage() {
                 <div className={styles.footer}>
                     <button
                         className={styles.secondaryBtn}
-                        onClick={() => router.push(`/report/content?id=${reportId}`)}
+                        onClick={handleBack}
                     >
                         &larr; Back to Content
                     </button>
@@ -177,9 +193,9 @@ export default function ReportGeneratePage() {
                         onClick={handleGenerate}
                         disabled={generating || !selectedTemplateId}
                     >
-                        {generating ? "Generating..." : "Generate Report"}
+                        {generating ? "Generating..." : "Next to Text Replace"}
                         {!generating && (
-                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                         )}
                     </button>
                 </div>

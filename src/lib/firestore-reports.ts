@@ -26,6 +26,7 @@ export interface ReportFile {
 
 export interface Report {
     id: string;
+    status?: string; // Report Status (Initial, Preprocess:AI, Filling:Basic, etc.)
     // We use a flexible dictionary for meta/basic because the keys are dynamic based on structure
     metadata: {
         [key: string]: any; // System fields (uid, status, etc)
@@ -153,6 +154,16 @@ export const initializeReportFromStructure = async (uid: string, reportId: strin
         basicInfoFields['singleLineAddress'].value = shellAddress;
     }
 
+    // Set initial Meta Status to 'Initial'
+    // Find field with placeholder [Replace_MetaStatus]
+    for (const key in metadataFields) {
+        const field = metadataFields[key];
+        if (field.placeholder === '[Replace_MetaStatus]') {
+            metadataFields[key].value = 'Initial';
+            break;
+        }
+    }
+
     const updatedData = {
         metadata: {
             ...existingReport.metadata,
@@ -165,7 +176,8 @@ export const initializeReportFromStructure = async (uid: string, reportId: strin
             fieldOrder: basicInfoOrder
         },
         content: contentSections,
-        contentOrder: contentOrder
+        contentOrder: contentOrder,
+        status: 'Initial' // Set Report Status to Initial
     };
 
     await updateReport(uid, reportId, updatedData);

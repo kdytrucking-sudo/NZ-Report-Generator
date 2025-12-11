@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { Report, getReport, initializeReportFromStructure, syncReportFields, ReportField, updateReport } from "@/lib/firestore-reports";
+import { uploadReportFile } from "@/lib/storage-reports";
 import { getPDFExtractPrompt } from "@/lib/firestore-ai";
 import { getStaticInfo, StaticInformation } from "@/lib/firestore-static";
 import { getMultiChoiceCards, MultiChoiceCard } from "@/lib/firestore-multi-choice";
@@ -31,6 +32,14 @@ export default function PreprocessPage() {
     // Status State
     const [activeTab, setActiveTab] = useState<'ai-extract' | 'static-info' | 'swot' | 'construct-chattels' | 'market-value' | 'room-option'>('ai-extract');
     const [initDone, setInitDone] = useState(false);
+
+    // File Upload State
+    const [briefFile, setBriefFile] = useState<File | null>(null);
+    const [titleFile, setTitleFile] = useState<File | null>(null);
+    const [uploadingBrief, setUploadingBrief] = useState(false);
+    const [uploadingTitle, setUploadingTitle] = useState(false);
+    const briefInputRef = useRef<HTMLInputElement>(null);
+    const titleInputRef = useRef<HTMLInputElement>(null);
 
     // AI State
     const [extractedData, setExtractedData] = useState<any[]>([]);
@@ -68,6 +77,64 @@ export default function PreprocessPage() {
         } catch (error) {
             console.error(error);
             showAlert("Initialization failed.");
+        }
+    };
+
+    const handleFileUpload = async (file: File, type: 'brief' | 'title') => {
+        if (!user || !reportId || !report) return;
+
+        const setUploading = type === 'brief' ? setUploadingBrief : setUploadingTitle;
+        setUploading(true);
+
+        try {
+            // Upload file to storage
+            const uploadedFile = await uploadReportFile(user.uid, reportId, file, type);
+
+            // Update local state first using functional update to avoid race conditions
+            setReport(prevReport => {
+                if (!prevReport) return prevReport;
+
+                const updatedFiles = {
+                    ...(prevReport.files || {}),
+                    [type]: uploadedFile
+                };
+
+                return { ...prevReport, files: updatedFiles };
+            });
+
+            // Then update Firestore - use functional approach to get latest state
+            setReport(currentReport => {
+                if (currentReport) {
+                    updateReport(user.uid, reportId, { files: currentReport.files });
+                }
+                return currentReport;
+            });
+
+            if (type === 'brief') {
+                setBriefFile(null);
+            } else {
+                setTitleFile(null);
+            }
+
+            showAlert(`${type === 'brief' ? 'Brief' : 'Title'} file uploaded successfully!`);
+        } catch (error) {
+            console.error(`Error uploading ${type}:`, error);
+            showAlert(`Failed to upload ${type} file.`);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const onFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'brief' | 'title') => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            if (type === 'brief') {
+                setBriefFile(file);
+            } else {
+                setTitleFile(file);
+            }
+            // Auto-upload when file is selected
+            handleFileUpload(file, type);
         }
     };
 
@@ -158,8 +225,13 @@ export default function PreprocessPage() {
 
         try {
             const { metadata, baseInfo, content } = updatedReport;
-            await updateReport(user.uid, report.id, { metadata, baseInfo, content });
-            setReport(updatedReport);
+            await updateReport(user.uid, report.id, {
+                metadata,
+                baseInfo,
+                content,
+                status: 'Preprocess:AI' // Update status
+            });
+            setReport({ ...updatedReport, status: 'Preprocess:AI' });
             showAlert("Database updated successfully!");
         } catch (e) {
             console.error(e);
@@ -223,8 +295,13 @@ export default function PreprocessPage() {
 
         try {
             const { metadata, baseInfo, content } = updatedReport;
-            await updateReport(user.uid, report.id, { metadata, baseInfo, content });
-            setReport(updatedReport);
+            await updateReport(user.uid, report.id, {
+                metadata,
+                baseInfo,
+                content,
+                status: 'Preprocess:StaticInfo' // Update status
+            });
+            setReport({ ...updatedReport, status: 'Preprocess:StaticInfo' });
             showAlert("Static data updated to report!");
         } catch (e) {
             console.error(e);
@@ -390,8 +467,13 @@ export default function PreprocessPage() {
 
         try {
             const { metadata, baseInfo, content } = updatedReport;
-            await updateReport(user.uid, report.id, { metadata, baseInfo, content });
-            setReport(updatedReport);
+            await updateReport(user.uid, report.id, {
+                metadata,
+                baseInfo,
+                content,
+                status: 'Preprocess:Valuation' // Update status
+            });
+            setReport({ ...updatedReport, status: 'Preprocess:Valuation' });
             showAlert("Market Value data updated to report successfully!");
         } catch (e) {
             console.error(e);
@@ -485,8 +567,13 @@ export default function PreprocessPage() {
         const updatedReport = syncReportFields(report, sourceFields);
         try {
             const { metadata, baseInfo, content } = updatedReport;
-            await updateReport(user.uid, report.id, { metadata, baseInfo, content });
-            setReport(updatedReport);
+            await updateReport(user.uid, report.id, {
+                metadata,
+                baseInfo,
+                content,
+                status: 'Preprocess:Chattels' // Update status
+            });
+            setReport({ ...updatedReport, status: 'Preprocess:Chattels' });
             showAlert("Construct/Chattels data updated to report!");
         } catch (e) {
             console.error(e);
@@ -601,8 +688,13 @@ export default function PreprocessPage() {
         const updatedReport = syncReportFields(report, sourceFields);
         try {
             const { metadata, baseInfo, content } = updatedReport;
-            await updateReport(user.uid, report.id, { metadata, baseInfo, content });
-            setReport(updatedReport);
+            await updateReport(user.uid, report.id, {
+                metadata,
+                baseInfo,
+                content,
+                status: 'Preprocess:SWOT' // Update status
+            });
+            setReport({ ...updatedReport, status: 'Preprocess:SWOT' });
             showAlert("SWOT data updated to report!");
         } catch (e) {
             console.error(e);
@@ -802,8 +894,13 @@ export default function PreprocessPage() {
 
             // Update the report in Firestore
             const { metadata, baseInfo, content } = updatedReport;
-            await updateReport(user.uid, report.id, { metadata, baseInfo, content });
-            setReport(updatedReport);
+            await updateReport(user.uid, report.id, {
+                metadata,
+                baseInfo,
+                content,
+                status: 'Preprocess:RoomOption' // Update status
+            });
+            setReport({ ...updatedReport, status: 'Preprocess:RoomOption' });
             showAlert(`Successfully inserted ${addedRooms.length} room(s) into report!`);
         } catch (e) {
             console.error(e);
@@ -811,7 +908,20 @@ export default function PreprocessPage() {
         }
     };
 
-    const handleNext = () => {
+    const handleNext = async () => {
+        if (!report || !user) return;
+
+        try {
+            // Update status to Filling:Basic before navigating
+            await updateReport(user.uid, report.id, { status: 'Filling:Basic' });
+            router.push(`/report/basic?id=${report.id}`);
+        } catch (e) {
+            console.error(e);
+            showAlert("Failed to update status.");
+        }
+    };
+
+    const handleUpdateJobInfo = () => {
         if (!report) return;
         router.push(`/report/meta?id=${report.id}`);
     };
@@ -821,7 +931,15 @@ export default function PreprocessPage() {
             {AlertComponent}
             <div className={styles.container}>
                 <div className={styles.header}>
-                    <h1 className={styles.title}>Data Pre-processing</h1>
+                    <div>
+                        <h1 className={styles.title}>Data Pre-processing</h1>
+                    </div>
+                    <button className={styles.updateJobBtn} onClick={handleUpdateJobInfo}>
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Update Job Info
+                    </button>
                 </div>
 
                 {/* Tabs */}
@@ -871,19 +989,104 @@ export default function PreprocessPage() {
                                 {/* Files Column */}
                                 <div className={styles.card}>
                                     <h2 className={styles.cardTitle}>Source Files</h2>
-                                    <div className={styles.fileItem}>
-                                        <strong>Title:</strong> {report.files.title?.name || "N/A"}
+
+                                    {/* Brief Doc Upload */}
+                                    <div className={styles.field} style={{ marginBottom: '1rem' }}>
+                                        <label className={styles.fieldLabel}>Brief Doc</label>
+                                        <div className={styles.fileInputWrapper}>
+                                            <input
+                                                type="text"
+                                                className={`input ${styles.fileInput}`}
+                                                value={
+                                                    uploadingBrief
+                                                        ? "Uploading..."
+                                                        : report.files.brief?.name || ""
+                                                }
+                                                placeholder="Upload (.pdf, .doc)"
+                                                readOnly
+                                                onClick={() => !uploadingBrief && briefInputRef.current?.click()}
+                                                style={{ cursor: uploadingBrief ? 'not-allowed' : 'pointer' }}
+                                            />
+                                            <button
+                                                className={styles.fileBtn}
+                                                onClick={() => briefInputRef.current?.click()}
+                                                disabled={uploadingBrief}
+                                            >
+                                                {uploadingBrief ? "..." : report.files.brief?.name ? "Replace" : "Choose"}
+                                            </button>
+                                            <input
+                                                type="file"
+                                                ref={briefInputRef}
+                                                hidden
+                                                onChange={(e) => onFileChange(e, "brief")}
+                                                accept=".pdf,.doc,.docx"
+                                                disabled={uploadingBrief}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className={styles.fileItem}>
-                                        <strong>Brief:</strong> {report.files.brief?.name || "N/A"}
+
+                                    {/* Title Doc Upload */}
+                                    <div className={styles.field} style={{ marginBottom: '1rem' }}>
+                                        <label className={styles.fieldLabel}>Property Title</label>
+                                        <div className={styles.fileInputWrapper}>
+                                            <input
+                                                type="text"
+                                                className={`input ${styles.fileInput}`}
+                                                value={
+                                                    uploadingTitle
+                                                        ? "Uploading..."
+                                                        : report.files.title?.name || ""
+                                                }
+                                                placeholder="Upload (.pdf, .doc)"
+                                                readOnly
+                                                onClick={() => !uploadingTitle && titleInputRef.current?.click()}
+                                                style={{ cursor: uploadingTitle ? 'not-allowed' : 'pointer' }}
+                                            />
+                                            <button
+                                                className={styles.fileBtn}
+                                                onClick={() => titleInputRef.current?.click()}
+                                                disabled={uploadingTitle}
+                                            >
+                                                {uploadingTitle ? "..." : report.files.title?.name ? "Replace" : "Choose"}
+                                            </button>
+                                            <input
+                                                type="file"
+                                                ref={titleInputRef}
+                                                hidden
+                                                onChange={(e) => onFileChange(e, "title")}
+                                                accept=".pdf,.doc,.docx"
+                                                disabled={uploadingTitle}
+                                            />
+                                        </div>
                                     </div>
+
                                     <div style={{ marginTop: 'auto' }}>
                                         <p className="text-xs text-gray-500 mb-2">
                                             AI will read these PDF/Doc files to extract data based on your "PDF Extract" Settings.
                                         </p>
-                                        <button className={styles.extractBtn} onClick={handleAIExtract} disabled={isExtracting}>
+                                        <button
+                                            className={styles.extractBtn}
+                                            onClick={handleAIExtract}
+                                            disabled={
+                                                isExtracting ||
+                                                uploadingBrief ||
+                                                uploadingTitle ||
+                                                !report.files.brief?.url ||
+                                                !report.files.title?.url
+                                            }
+                                        >
                                             {isExtracting ? "Extracting..." : "AI Extract Data"}
                                         </button>
+                                        {(!report.files.brief?.url || !report.files.title?.url) && (
+                                            <p className="text-xs text-amber-600 mt-2">
+                                                ⚠ Please upload both files before extracting
+                                            </p>
+                                        )}
+                                        {(uploadingBrief || uploadingTitle) && (
+                                            <p className="text-xs text-blue-600 mt-2">
+                                                🔄 Uploading files...
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
 
@@ -1574,7 +1777,7 @@ export default function PreprocessPage() {
                         {/* Footer Actions */}
                         <div className={styles.footer}>
                             <button className={styles.secondaryBtn} onClick={() => router.push('/dashboard')}>Cancel</button>
-                            <button className={styles.primaryBtn} onClick={handleNext}>Next: Meta Info &rarr;</button>
+                            <button className={styles.primaryBtn} onClick={handleNext}>Next: Basic Info &rarr;</button>
                         </div>
                     </div>
                 )

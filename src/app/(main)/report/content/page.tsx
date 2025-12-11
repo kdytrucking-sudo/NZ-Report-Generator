@@ -88,6 +88,45 @@ export default function ReportContentPage() {
         });
     };
 
+    const handleUpdateJobInfo = () => {
+        if (!report) return;
+        router.push(`/report/meta?id=${report.id}`);
+    };
+
+    const handleSaveBack = async () => {
+        if (!user || !report || !reportId) return;
+
+        setSaving(true);
+        try {
+            // Collect all fields from all sections as source
+            let allContentFields: { [key: string]: ReportField } = {};
+            if (report.content) {
+                Object.values(report.content).forEach(section => {
+                    if (section.fields) {
+                        allContentFields = { ...allContentFields, ...section.fields };
+                    }
+                });
+            }
+
+            // Synchronize fields
+            const updatedReport = syncReportFields(report, allContentFields);
+
+            await updateReport(user.uid, reportId, {
+                metadata: updatedReport.metadata,
+                baseInfo: updatedReport.baseInfo,
+                content: updatedReport.content,
+                status: 'Filling:Basic' // Update status when going back
+            });
+            // Go back to basic
+            router.push(`/report/basic?id=${reportId}`);
+        } catch (error) {
+            console.error("Error saving content:", error);
+            showAlert("Failed to save content.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const handleSave = async () => {
         if (!user || !report || !reportId) return;
 
@@ -112,7 +151,8 @@ export default function ReportContentPage() {
                     status: "in_progress"
                 },
                 baseInfo: updatedReport.baseInfo,
-                content: updatedReport.content
+                content: updatedReport.content,
+                status: 'Filling:Completed' // Update report status
             });
             router.push(`/report/generate?id=${reportId}`);
         } catch (error) {
@@ -245,8 +285,16 @@ export default function ReportContentPage() {
             {AlertComponent}
             <div className={styles.container}>
                 <div className={styles.header}>
-                    <h1 className={styles.title}>Report Content</h1>
-                    <p className={styles.subtitle}>Fill in the detailed sections of your report.</p>
+                    <div>
+                        <h1 className={styles.title}>Report Content</h1>
+                        <p className={styles.subtitle}>Fill in the detailed sections of your report.</p>
+                    </div>
+                    <button className={styles.updateJobBtn} onClick={handleUpdateJobInfo}>
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Update Job Info
+                    </button>
                 </div>
 
                 {/* Tabs */}
@@ -277,9 +325,9 @@ export default function ReportContentPage() {
                     )}
 
                     <div className={styles.footer}>
-                        <Link href={`/report/basic?id=${reportId}`} className={styles.backBtn}>
-                            Previous
-                        </Link>
+                        <button className={styles.backBtn} onClick={handleSaveBack} disabled={saving}>
+                            {saving ? "Saving..." : "Save & Back"}
+                        </button>
                         <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>
                             {saving ? "Saving..." : "Save to Review"}
                             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>

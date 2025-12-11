@@ -33,7 +33,9 @@
 
 .header {
     margin-bottom: 2rem;
-    text-align: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .title {
@@ -41,6 +43,26 @@
     font-weight: 700;
     color: var(--foreground);
     margin-bottom: 0.5rem;
+}
+
+.updateJobBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    flex-shrink: 0;
+}
+
+.updateJobBtn:hover {
+    background-color: #2563eb;
 }
 
 .subtitle {
@@ -115,6 +137,32 @@
     font-weight: 500;
     color: var(--foreground);
     font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.placeholderIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+    color: #6366f1;
+    background-color: #eef2ff;
+    border: 1px solid #c7d2fe;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.placeholderIcon:hover {
+    background-color: #ddd6fe;
+    border-color: #a78bfa;
+    transform: scale(1.1);
 }
 
 .input,

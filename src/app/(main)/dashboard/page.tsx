@@ -21,19 +21,14 @@ export default function Dashboard() {
     const [reports, setReports] = useState<Report[]>([]);
     const [isMobile, setIsMobile] = useState(false);
     const [loadingReports, setLoadingReports] = useState(true);
-    const draftReports = reports.filter(r => r.metadata?.status !== 'created' && r.metadata?.status !== 'completed');
+    const draftReports = reports.filter(r => r.status !== 'Report_Completed');
 
     // New Report State
     const [newAddress, setNewAddress] = useState("");
-    const [briefFile, setBriefFile] = useState<File | null>(null);
-    const [titleFile, setTitleFile] = useState<File | null>(null);
     const [creating, setCreating] = useState(false);
 
     const [selectedReportId, setSelectedReportId] = useState("");
     const [viewingReport, setViewingReport] = useState<Report | null>(null);
-
-    const briefInputRef = useRef<HTMLInputElement>(null);
-    const titleInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const checkMobile = () => {
@@ -59,7 +54,7 @@ export default function Dashboard() {
                 getUserReports(currentUser.uid).then(fetchedReports => {
                     setReports(fetchedReports);
                     setLoadingReports(false);
-                    const firstDraft = fetchedReports.find(r => r.metadata?.status !== 'created' && r.metadata?.status !== 'completed');
+                    const firstDraft = fetchedReports.find(r => r.status !== 'Report_Completed');
                     if (firstDraft) {
                         setSelectedReportId(firstDraft.id);
                     }
@@ -89,29 +84,16 @@ export default function Dashboard() {
             showAlert("Please enter a Property Address.");
             return;
         }
-        if (!briefFile || !titleFile) {
-            showAlert("Please upload both Brief Doc and Property Title.");
-            return;
-        }
 
         setCreating(true);
         try {
-            // 1. Create initial report shell
+            // Create initial report shell with just the address
             const newReport = await createReportShell(user.uid, newAddress, {});
 
-            // 2. Upload files
-            const uploadedBrief = await uploadReportFile(user.uid, newReport.id, briefFile, "brief");
-            const uploadedTitle = await uploadReportFile(user.uid, newReport.id, titleFile, "title");
+            // Set initial status to 'Initial'
+            await updateReport(user.uid, newReport.id, { status: 'Initial' });
 
-            // 3. Update report with files
-            await updateReport(user.uid, newReport.id, {
-                files: {
-                    brief: uploadedBrief,
-                    title: uploadedTitle
-                }
-            });
-
-            // 4. Redirect to Pre-processing
+            // Redirect to Pre-processing page where files can be uploaded
             router.push(`/report/preprocess?id=${newReport.id}`);
         } catch (error) {
             console.error(error);
@@ -120,16 +102,10 @@ export default function Dashboard() {
         }
     };
 
-    const onFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: "brief" | "title") => {
-        if (e.target.files && e.target.files[0]) {
-            if (type === "brief") setBriefFile(e.target.files[0]);
-            else setTitleFile(e.target.files[0]);
-        }
-    };
-
     const handleLoadDraft = () => {
         if (!selectedReportId) return;
-        router.push(`/report/meta?id=${selectedReportId}`);
+        // Changed to go to preprocess page instead of meta page
+        router.push(`/report/preprocess?id=${selectedReportId}`);
     };
 
     const handleDeleteDraft = async () => {
@@ -163,6 +139,22 @@ export default function Dashboard() {
 
     const handleEditReport = (report: Report) => {
         router.push(`/report/meta?id=${report.id}`);
+    };
+
+    const handleContinueReport = (report: Report) => {
+        router.push(`/report/preprocess?id=${report.id}`);
+    };
+
+    const getJobStatus = (report: Report): string => {
+        // Find field with placeholder [Replace_MetaStatus]
+        const metaFields = report.metadata?.fields || {};
+        for (const key in metaFields) {
+            const field = metaFields[key];
+            if (field.placeholder === '[Replace_MetaStatus]') {
+                return field.value || 'Initial';
+            }
+        }
+        return 'Initial';
     };
 
     const formatDate = (timestamp: any) => {
@@ -241,58 +233,8 @@ export default function Dashboard() {
                 </div>
 
                 <div className={styles.actionGrid}>
-                    {/* 1. Upload Files */}
-                    <div className={styles.actionCard}>
-                        <h2 className={styles.cardTitle}>Upload Files</h2>
-                        <div className={styles.inputGroup}>
-                            <div className={styles.field}>
-                                <label className={styles.fieldLabel}>Brief Doc</label>
-                                <div className={styles.fileInputWrapper}>
-                                    <input
-                                        type="text"
-                                        className={`input ${styles.fileInput}`}
-                                        value={briefFile ? briefFile.name : ""}
-                                        placeholder="Upload (.pdf, .doc)"
-                                        readOnly
-                                        onClick={() => briefInputRef.current?.click()}
-                                    />
-                                    <button className={styles.fileBtn} onClick={() => briefInputRef.current?.click()}>Choose</button>
-                                    <input
-                                        type="file"
-                                        ref={briefInputRef}
-                                        hidden
-                                        onChange={(e) => onFileChange(e, "brief")}
-                                        accept=".pdf,.doc,.docx"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className={styles.field}>
-                                <label className={styles.fieldLabel}>Property Title</label>
-                                <div className={styles.fileInputWrapper}>
-                                    <input
-                                        type="text"
-                                        className={`input ${styles.fileInput}`}
-                                        value={titleFile ? titleFile.name : ""}
-                                        placeholder="Upload (.pdf, .doc)"
-                                        readOnly
-                                        onClick={() => titleInputRef.current?.click()}
-                                    />
-                                    <button className={styles.fileBtn} onClick={() => titleInputRef.current?.click()}>Choose</button>
-                                    <input
-                                        type="file"
-                                        ref={titleInputRef}
-                                        hidden
-                                        onChange={(e) => onFileChange(e, "title")}
-                                        accept=".pdf,.doc,.docx"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 2. Start New Report */}
-                    <div className={styles.actionCard}>
+                    {/* 1. Start New Report - 1/3 width */}
+                    <div className={styles.actionCard} style={{ gridColumn: 'span 1' }}>
                         <h2 className={styles.cardTitle}>Start New Report</h2>
                         <div className={styles.inputGroup}>
                             <div className={styles.field}>
@@ -324,8 +266,8 @@ export default function Dashboard() {
                         </div>
                     </div>
 
-                    {/* 3. Continue Draft */}
-                    <div className={styles.actionCard}>
+                    {/* 2. Continue Draft - 2/3 width */}
+                    <div className={styles.actionCard} style={{ gridColumn: 'span 2' }}>
                         <h2 className={styles.cardTitle}>Continue Draft</h2>
                         <div className={styles.inputGroup}>
                             <div className={styles.selectWrapper}>
@@ -338,7 +280,7 @@ export default function Dashboard() {
                                     {draftReports.length > 0 ? (
                                         draftReports.map(r => (
                                             <option key={r.id} value={r.id}>
-                                                {(r.metadata?.fields?.['address']?.value || "Untitled").substring(0, 40)}...
+                                                {`[${r.status || 'Initial'}]: ${(r.metadata?.fields?.['address']?.value || "Untitled").substring(0, 40)}`}
                                             </option>
                                         ))
                                     ) : (
@@ -391,30 +333,41 @@ export default function Dashboard() {
                             <thead>
                                 <tr>
                                     <th>Property Address</th>
-                                    <th>Status</th>
+                                    <th>Report Status</th>
+                                    <th>Job Status</th>
                                     <th>Created</th>
                                     <th style={{ textAlign: 'right' }}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {loadingReports ? (
-                                    <tr><td colSpan={4} className="p-4 text-center">Loading reports...</td></tr>
+                                    <tr><td colSpan={5} className="p-4 text-center">Loading reports...</td></tr>
                                 ) : reports.length === 0 ? (
-                                    <tr><td colSpan={4} className="p-4 text-center">No reports found</td></tr>
+                                    <tr><td colSpan={5} className="p-4 text-center">No reports found</td></tr>
                                 ) : (
                                     reports.map((report) => (
                                         <tr key={report.id}>
                                             <td className={styles.primaryText}>{report.metadata?.fields?.['address']?.value || "N/A"}</td>
                                             <td>
                                                 <span style={{
-                                                    textTransform: 'capitalize',
                                                     padding: '2px 8px',
                                                     borderRadius: '12px',
                                                     fontSize: '0.75rem',
-                                                    backgroundColor: report.metadata?.status === 'completed' ? '#d1fae5' : '#fef3c7',
-                                                    color: report.metadata?.status === 'completed' ? '#065f46' : '#92400e'
+                                                    backgroundColor: report.status?.includes('Completed') ? '#d1fae5' : '#fef3c7',
+                                                    color: report.status?.includes('Completed') ? '#065f46' : '#92400e'
                                                 }}>
-                                                    {(report.metadata?.status || 'draft').replace('_', ' ')}
+                                                    {report.status || 'Initial'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span style={{
+                                                    padding: '2px 8px',
+                                                    borderRadius: '12px',
+                                                    fontSize: '0.75rem',
+                                                    backgroundColor: '#e0e7ff',
+                                                    color: '#3730a3'
+                                                }}>
+                                                    {getJobStatus(report)}
                                                 </span>
                                             </td>
                                             <td>{formatDate(report.metadata?.createdAt)}</td>
@@ -422,6 +375,9 @@ export default function Dashboard() {
                                                 <div className={styles.actionsCell}>
                                                     <button className={styles.iconBtn} title="View Details" onClick={() => handleViewReport(report)}>
                                                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                                    </button>
+                                                    <button className={styles.iconBtn} title="Continue" onClick={() => handleContinueReport(report)}>
+                                                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                                                     </button>
                                                     <button className={styles.iconBtn} title="Edit" onClick={() => handleEditReport(report)}>
                                                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>

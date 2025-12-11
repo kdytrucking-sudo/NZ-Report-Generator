@@ -6,7 +6,9 @@
 
 .header {
     margin-bottom: 2rem;
-    text-align: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .title {
@@ -14,6 +16,26 @@
     font-weight: 700;
     color: var(--foreground);
     margin-bottom: 0.5rem;
+}
+
+.updateJobBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    flex-shrink: 0;
+}
+
+.updateJobBtn:hover {
+    background-color: #2563eb;
 }
 
 .subtitle {

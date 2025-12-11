@@ -136,6 +136,9 @@ export default function ReportDownloadPage() {
                 throw new Error(err.error || err.message || "Replacement failed");
             }
 
+            // Update status to Report_Completed
+            await updateReport(user.uid, reportId, { status: 'Report_Completed' });
+
             // Redirect to the new download page
             router.push(`/report/final-download?id=${reportId}`);
 

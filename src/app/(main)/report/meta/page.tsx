@@ -58,6 +58,28 @@ export default function ReportMetaPage() {
         });
     };
 
+    const handleSaveClose = async () => {
+        if (!user || !report || !reportId) return;
+
+        setSaving(true);
+        try {
+            // Synchronize fields across the report based on placeholders
+            const updatedReport = syncReportFields(report, report.metadata.fields);
+
+            await updateReport(user.uid, reportId, {
+                metadata: updatedReport.metadata,
+                baseInfo: updatedReport.baseInfo,
+                content: updatedReport.content
+            });
+            // Return to dashboard
+            router.push('/dashboard');
+        } catch (error) {
+            console.error("Error saving meta:", error);
+            showAlert("Failed to save changes.");
+            setSaving(false);
+        }
+    };
+
     const handleSaveNext = async () => {
         if (!user || !report || !reportId) return;
 
@@ -71,8 +93,8 @@ export default function ReportMetaPage() {
                 baseInfo: updatedReport.baseInfo,
                 content: updatedReport.content
             });
-            // Proceed to next step
-            router.push(`/report/basic?id=${reportId}`);
+            // Proceed to preprocess page
+            router.push(`/report/preprocess?id=${reportId}`);
         } catch (error) {
             console.error("Error saving meta:", error);
             showAlert("Failed to save changes.");
@@ -216,11 +238,11 @@ export default function ReportMetaPage() {
                     </div>
 
                     <div className={styles.footer}>
-                        <Link href="/dashboard" className={styles.backBtn}>
-                            Cancel
-                        </Link>
+                        <button className={styles.backBtn} onClick={handleSaveClose} disabled={saving}>
+                            {saving ? "Saving..." : "Save & Close"}
+                        </button>
                         <button className={styles.nextBtn} onClick={handleSaveNext} disabled={saving}>
-                            {saving ? "Saving..." : "Save & Next"}
+                            {saving ? "Saving..." : "Save & Next To Report"}
                             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                         </button>
                     </div>

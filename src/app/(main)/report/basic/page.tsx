@@ -58,7 +58,12 @@ export default function ReportBasicPage() {
         });
     };
 
-    const handleSaveNext = async () => {
+    const handleUpdateJobInfo = () => {
+        if (!report) return;
+        router.push(`/report/meta?id=${report.id}`);
+    };
+
+    const handleSaveBack = async () => {
         if (!user || !report || !reportId) return;
 
         setSaving(true);
@@ -70,6 +75,29 @@ export default function ReportBasicPage() {
                 metadata: updatedReport.metadata,
                 baseInfo: updatedReport.baseInfo,
                 content: updatedReport.content
+            });
+            // Go back to preprocess
+            router.push(`/report/preprocess?id=${reportId}`);
+        } catch (error) {
+            console.error("Error saving basic info:", error);
+            showAlert("Failed to save changes.");
+            setSaving(false);
+        }
+    };
+
+    const handleSaveNext = async () => {
+        if (!user || !report || !reportId) return;
+
+        setSaving(true);
+        try {
+            // Synchronize fields across the report based on placeholders
+            const updatedReport = syncReportFields(report, report.baseInfo.fields);
+
+            await updateReport(user.uid, reportId, {
+                metadata: updatedReport.metadata,
+                baseInfo: updatedReport.baseInfo,
+                content: updatedReport.content,
+                status: 'Filling:Content' // Update status
             });
             // Proceed to next step
             router.push(`/report/content?id=${reportId}`);
@@ -203,8 +231,16 @@ export default function ReportBasicPage() {
             {AlertComponent}
             <div className={styles.container}>
                 <div className={styles.header}>
-                    <h1 className={styles.title}>Basic Information</h1>
-                    <p className={styles.subtitle}>Enter the core details of the property.</p>
+                    <div>
+                        <h1 className={styles.title}>Basic Information</h1>
+                        <p className={styles.subtitle}>Enter the core details of the property.</p>
+                    </div>
+                    <button className={styles.updateJobBtn} onClick={handleUpdateJobInfo}>
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Update Job Info
+                    </button>
                 </div>
 
                 <div className={styles.formCard}>
@@ -214,9 +250,9 @@ export default function ReportBasicPage() {
                     </div>
 
                     <div className={styles.footer}>
-                        <Link href={`/report/meta?id=${reportId}`} className={styles.backBtn}>
-                            Previous
-                        </Link>
+                        <button className={styles.backBtn} onClick={handleSaveBack} disabled={saving}>
+                            {saving ? "Saving..." : "Save & Back"}
+                        </button>
                         <button className={styles.nextBtn} onClick={handleSaveNext} disabled={saving}>
                             {saving ? "Saving..." : "Save & Next"}
                             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>

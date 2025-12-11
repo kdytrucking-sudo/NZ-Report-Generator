@@ -8,12 +8,34 @@
 
 .header {
     margin-bottom: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .title {
     font-size: 2rem;
     font-weight: 800;
     margin-bottom: 0.5rem;
+}
+
+.updateJobBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.updateJobBtn:hover {
+    background-color: #2563eb;
 }
 
 .subtitle {
@@ -89,6 +111,54 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* File Upload Styles */
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.fieldLabel {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #64748b;
+}
+
+.fileInputWrapper {
+    display: flex;
+    align-items: stretch;
+}
+
+.fileInput {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right: 0;
+    min-width: 0;
+    flex: 1;
+}
+
+.fileBtn {
+    padding: 0 1rem;
+    border: 1px solid #e2e8f0;
+    background-color: #f8fafc;
+    border-top-right-radius: 0.375rem;
+    border-bottom-right-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+.fileBtn:hover:not(:disabled) {
+    background-color: #e5e7eb;
+}
+
+.fileBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .extractBtn {
