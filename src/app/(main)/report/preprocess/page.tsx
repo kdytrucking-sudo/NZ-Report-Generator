@@ -561,6 +561,7 @@ export default function PreprocessPage() {
                 // Log normalized value
                 console.log(`[SWOT Debug] Normalized value:`, JSON.stringify(normalizedValue));
 
+                // Update the original placeholder
                 sourceFields[`swot_${idx}`] = {
                     id: `swot_${idx}`,
                     label: card.name,
@@ -570,6 +571,31 @@ export default function PreprocessPage() {
                     type: 'string',
                     ifValidation: false
                 };
+
+                // Also update the corresponding "1" placeholder with the same value
+                // [Replace_Strengths] -> [Replace_Strengths1]
+                // [Replace_Weaknesses] -> [Replace_Weaknesses1]
+                if (card.placeholder === '[Replace_Strengths]') {
+                    sourceFields[`swot_${idx}_1`] = {
+                        id: `swot_${idx}_1`,
+                        label: card.name + '1',
+                        placeholder: '[Replace_Strengths1]',
+                        value: normalizedValue,
+                        displayType: 'textarea',
+                        type: 'string',
+                        ifValidation: false
+                    };
+                } else if (card.placeholder === '[Replace_Weaknesses]') {
+                    sourceFields[`swot_${idx}_1`] = {
+                        id: `swot_${idx}_1`,
+                        label: card.name + '1',
+                        placeholder: '[Replace_Weaknesses1]',
+                        value: normalizedValue,
+                        displayType: 'textarea',
+                        type: 'string',
+                        ifValidation: false
+                    };
+                }
             }
         });
         const updatedReport = syncReportFields(report, sourceFields);
@@ -652,24 +678,133 @@ export default function PreprocessPage() {
     const handleUpdateRoomToReport = async () => {
         if (!report || !user) return;
 
-        const sourceFields: { [key: string]: ReportField } = {};
-
-        addedRooms.forEach(room => {
-            if (room.placeholderName) {
-                sourceFields[room.placeholderName] = { id: room.placeholderName, label: 'Room Name', placeholder: room.placeholderName, value: room.roomName, displayType: 'text', type: 'string', ifValidation: false };
-            }
-            if (room.placeholderText) {
-                sourceFields[room.placeholderText] = { id: room.placeholderText, label: 'Room Text', placeholder: room.placeholderText, value: room.textValue, displayType: 'text', type: 'string', ifValidation: false };
-            }
-        });
-
-        const updatedReport = syncReportFields(report, sourceFields);
-
         try {
+            // Deep copy the report to avoid mutation
+            const updatedReport = JSON.parse(JSON.stringify(report));
+
+            // Find the section and field containing [Replace_LayoutAmenities]
+            let targetSection: any = null;
+            let targetFieldKey: string | null = null;
+            let targetFieldOrder: string[] = [];
+            let insertPosition = 0;
+
+            // Search through all content sections
+            if (updatedReport.content) {
+                for (const sectionKey of Object.keys(updatedReport.content)) {
+                    const section = updatedReport.content[sectionKey];
+                    if (section.fields) {
+                        for (const fieldKey of Object.keys(section.fields)) {
+                            const field = section.fields[fieldKey];
+                            if (field.placeholder === '[Replace_LayoutAmenities]') {
+                                targetSection = section;
+                                targetFieldKey = fieldKey;
+                                targetFieldOrder = section.fieldOrder || [];
+                                break;
+                            }
+                        }
+                    }
+                    if (targetSection) break;
+                }
+            }
+
+            // If [Replace_LayoutAmenities] not found, use the first content section and insert at the end
+            if (!targetSection) {
+                const firstSectionKey = updatedReport.content ? Object.keys(updatedReport.content)[0] : null;
+                if (firstSectionKey) {
+                    targetSection = updatedReport.content[firstSectionKey];
+                    targetFieldOrder = targetSection.fieldOrder || [];
+                    insertPosition = targetFieldOrder.length; // Insert at the end
+                    console.log('[Room Option] [Replace_LayoutAmenities] not found, inserting at end of first section:', firstSectionKey);
+                } else {
+                    showAlert("No content sections found in report structure.");
+                    return;
+                }
+            } else {
+                // Found [Replace_LayoutAmenities], insert after it
+                const insertAfterIndex = targetFieldOrder.indexOf(targetFieldKey!);
+                if (insertAfterIndex !== -1) {
+                    insertPosition = insertAfterIndex + 1;
+                } else {
+                    insertPosition = targetFieldOrder.length; // Fallback to end
+                }
+                console.log('[Room Option] Found target section:', targetSection.id);
+                console.log('[Room Option] Target field key:', targetFieldKey);
+            }
+
+            console.log('[Room Option] Current field order:', targetFieldOrder);
+            console.log('[Room Option] Will insert at position:', insertPosition);
+
+            // Remove any existing room option fields (cleanup old data)
+            const fieldsToRemove: string[] = [];
+            Object.keys(targetSection.fields).forEach(key => {
+                const field = targetSection.fields[key];
+                if (field.placeholder && (
+                    field.placeholder.includes('Replace_RoomOptionName') ||
+                    field.placeholder.includes('Replace_RoomOptionText')
+                )) {
+                    fieldsToRemove.push(key);
+                }
+            });
+
+            fieldsToRemove.forEach(key => {
+                delete targetSection.fields[key];
+                const idx = targetFieldOrder.indexOf(key);
+                if (idx !== -1) {
+                    targetFieldOrder.splice(idx, 1);
+                    // Adjust insert position if we removed fields before it
+                    if (idx < insertPosition) {
+                        insertPosition--;
+                    }
+                }
+            });
+
+            console.log('[Room Option] Removed old room fields:', fieldsToRemove);
+
+            // Insert new room data
+            const newFieldKeys: string[] = [];
+
+            addedRooms.forEach((room, idx) => {
+                // Create unique field IDs
+                const nameFieldId = `roomOptionName_${room.id}`;
+                const textFieldId = `roomOptionText_${room.id}`;
+
+                // Add room name field
+                targetSection.fields[nameFieldId] = {
+                    id: nameFieldId,
+                    label: `Room ${room.id} Name`,
+                    placeholder: room.placeholderName,
+                    value: room.roomName,
+                    displayType: 'text',
+                    type: 'string',
+                    ifValidation: false
+                };
+
+                // Add room option text field
+                targetSection.fields[textFieldId] = {
+                    id: textFieldId,
+                    label: `Room ${room.id} Options`,
+                    placeholder: room.placeholderText,
+                    value: room.textValue,
+                    displayType: 'textarea',
+                    type: 'string',
+                    ifValidation: false
+                };
+
+                newFieldKeys.push(nameFieldId, textFieldId);
+            });
+
+            // Insert the new field keys into fieldOrder at the correct position
+            targetFieldOrder.splice(insertPosition, 0, ...newFieldKeys);
+            targetSection.fieldOrder = targetFieldOrder;
+
+            console.log('[Room Option] Added new fields:', newFieldKeys);
+            console.log('[Room Option] Updated field order:', targetFieldOrder);
+
+            // Update the report in Firestore
             const { metadata, baseInfo, content } = updatedReport;
             await updateReport(user.uid, report.id, { metadata, baseInfo, content });
             setReport(updatedReport);
-            showAlert("Room Options updated to report!");
+            showAlert(`Successfully inserted ${addedRooms.length} room(s) into report!`);
         } catch (e) {
             console.error(e);
             showAlert("Failed to update report with Room Options.");
