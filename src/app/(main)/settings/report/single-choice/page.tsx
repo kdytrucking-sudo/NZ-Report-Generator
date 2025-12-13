@@ -154,16 +154,8 @@ export default function SingleChoiceSettingsPage() {
                     {cards.map((card, cardIndex) => (
                         <div key={card.id || `temp-${cardIndex}`} className={styles.card}>
                             <div className={styles.cardHeader}>
-                                <button
-                                    className={styles.deleteCardBtn}
-                                    onClick={() => handleDeleteCard(cardIndex)}
-                                    title="Delete Card"
-                                >
-                                    <TrashIcon />
-                                </button>
-
                                 <div className={styles.field}>
-                                    <label className={styles.label}>Card Name (Database ID)</label>
+                                    <label className={styles.label}>Card Name</label>
                                     <input
                                         className={`${styles.input}`}
                                         value={card.name}
@@ -181,6 +173,14 @@ export default function SingleChoiceSettingsPage() {
                                         placeholder="[Replace_Placeholder]"
                                     />
                                 </div>
+
+                                <button
+                                    className={styles.deleteCardBtn}
+                                    onClick={() => handleDeleteCard(cardIndex)}
+                                    title="Delete Card"
+                                >
+                                    <TrashIcon />
+                                </button>
                             </div>
 
                             <div className={styles.cardBody}>

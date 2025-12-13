@@ -64,6 +64,42 @@
     padding: 1.5rem;
 }
 
+.cardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.placeholderInput {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.placeholderLabel {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.placeholderField {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0.375rem 0.5rem;
+    font-size: 0.875rem;
+    font-family: 'Monaco', 'Courier New', monospace;
+    color: #2563eb;
+    background-color: var(--background);
+    min-width: 200px;
+}
+
+.placeholderField:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
 .field {
     display: flex;
     flex-direction: column;

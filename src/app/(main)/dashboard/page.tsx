@@ -190,6 +190,40 @@ export default function Dashboard() {
         return date.toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit' });
     };
 
+    const formatContractPrice = (report: Report) => {
+        const metaFields = report.metadata?.fields || {};
+        let contractPrice = null;
+
+        // Find the field with [Replace_MetaContractPrice] placeholder
+        for (const key in metaFields) {
+            const field = metaFields[key];
+            if (field.placeholder === '[Replace_MetaContractPrice]') {
+                contractPrice = field.value;
+                break;
+            }
+        }
+
+        // Check if value is null, undefined, or empty
+        if (!contractPrice || contractPrice === '') {
+            return '$0.00';
+        }
+
+        // Check if it's already a valid price format (e.g., "$50,000")
+        const priceRegex = /^\$?[\d,]+(\.\d{2})?$/;
+        if (typeof contractPrice === 'string' && priceRegex.test(contractPrice.replace(/\s/g, ''))) {
+            return contractPrice.startsWith('$') ? contractPrice : `$${contractPrice}`;
+        }
+
+        // If it's a number, format it
+        const numValue = typeof contractPrice === 'number' ? contractPrice : parseFloat(contractPrice);
+        if (!isNaN(numValue)) {
+            return `$${numValue.toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+
+        // If none of the above, return $0.00
+        return '$0.00';
+    };
+
     if (isMobile) {
         return <MobileDashboard user={user} userData={userData} />;
     }
@@ -224,11 +258,11 @@ export default function Dashboard() {
                     </div>
                     <div className={styles.statCard}>
                         <p className={styles.statLabel}>In-Progress</p>
-                        <p className={styles.statValue}>{reports.filter(r => r.metadata?.status === 'in_progress').length}</p>
+                        <p className={styles.statValue}>{reports.filter(r => r.status !== 'Report_Completed').length}</p>
                     </div>
                     <div className={styles.statCard}>
                         <p className={styles.statLabel}>Completed</p>
-                        <p className={styles.statValue}>{reports.filter(r => r.metadata?.status === 'completed').length}</p>
+                        <p className={styles.statValue}>{reports.filter(r => r.status === 'Report_Completed').length}</p>
                     </div>
                 </div>
 
@@ -239,30 +273,25 @@ export default function Dashboard() {
                         <div className={styles.inputGroup}>
                             <div className={styles.field}>
                                 <label className={styles.fieldLabel}>Property Address</label>
-                                <input
-                                    type="text"
-                                    className="input"
-                                    placeholder="e.g., 123 Queen Street, Auckland"
-                                    style={{ maxWidth: '100%' }}
-                                    value={newAddress}
-                                    onChange={(e) => setNewAddress(e.target.value)}
-                                />
-                            </div>
-
-                            <div style={{ flexGrow: 1 }}></div>
-
-                            <button
-                                className={`btn btn-primary ${styles.generateBtn}`}
-                                onClick={handleStartNewReport}
-                                disabled={creating}
-                            >
-                                {creating ? "Creating..." : (
-                                    <>
+                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                    <input
+                                        type="text"
+                                        className="input"
+                                        placeholder="e.g., 123 Queen Street, Auckland"
+                                        style={{ flex: 1 }}
+                                        value={newAddress}
+                                        onChange={(e) => setNewAddress(e.target.value)}
+                                    />
+                                    <button
+                                        className={styles.iconAddBtn}
+                                        onClick={handleStartNewReport}
+                                        disabled={creating}
+                                        title="Create New Report"
+                                    >
                                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                                        New Report
-                                    </>
-                                )}
-                            </button>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -270,53 +299,43 @@ export default function Dashboard() {
                     <div className={styles.actionCard} style={{ gridColumn: 'span 2' }}>
                         <h2 className={styles.cardTitle}>Continue Draft</h2>
                         <div className={styles.inputGroup}>
-                            <div className={styles.selectWrapper}>
-                                <select
-                                    className="input"
-                                    style={{ appearance: 'none', width: '100%' }}
-                                    value={selectedReportId}
-                                    onChange={(e) => setSelectedReportId(e.target.value)}
-                                >
-                                    {draftReports.length > 0 ? (
-                                        draftReports.map(r => (
-                                            <option key={r.id} value={r.id}>
-                                                {`[${r.status || 'Initial'}]: ${(r.metadata?.fields?.['address']?.value || "Untitled").substring(0, 40)}`}
-                                            </option>
-                                        ))
-                                    ) : (
-                                        <option value="">No drafts available</option>
-                                    )}
-                                </select>
-                                <div className={styles.selectIcon}>
-                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', width: '100%' }}>
+                                <div className={styles.selectWrapper} style={{ flex: 1 }}>
+                                    <select
+                                        className="input"
+                                        style={{ appearance: 'none', width: '100%' }}
+                                        value={selectedReportId}
+                                        onChange={(e) => setSelectedReportId(e.target.value)}
+                                    >
+                                        {draftReports.length > 0 ? (
+                                            draftReports.map(r => (
+                                                <option key={r.id} value={r.id}>
+                                                    {`[${r.status || 'Initial'}]: ${(r.metadata?.fields?.['address']?.value || "Untitled").substring(0, 40)}`}
+                                                </option>
+                                            ))
+                                        ) : (
+                                            <option value="">No drafts available</option>
+                                        )}
+                                    </select>
+                                    <div className={styles.selectIcon}>
+                                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                    </div>
                                 </div>
-                            </div>
-
-                            <div style={{ flexGrow: 1 }}></div>
-
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
                                 <button
-                                    className={`btn ${styles.actionBtn}`}
+                                    className={styles.iconLoadBtn}
                                     onClick={handleLoadDraft}
                                     disabled={!selectedReportId}
-                                    style={{ flex: 1 }}
+                                    title="Load Draft"
                                 >
-                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                                    Load
+                                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                                 </button>
                                 <button
-                                    className="btn"
+                                    className={styles.iconDeleteBtn}
                                     onClick={handleDeleteDraft}
                                     disabled={!selectedReportId}
-                                    style={{
-                                        backgroundColor: '#fee2e2',
-                                        color: '#b91c1c',
-                                        border: '1px solid #fecaca',
-                                        padding: '0.5rem 1rem'
-                                    }}
                                     title="Delete Report"
                                 >
-                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                 </button>
                             </div>
                         </div>
@@ -335,15 +354,16 @@ export default function Dashboard() {
                                     <th>Property Address</th>
                                     <th>Report Status</th>
                                     <th>Job Status</th>
+                                    <th>Price</th>
                                     <th>Created</th>
                                     <th style={{ textAlign: 'right' }}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {loadingReports ? (
-                                    <tr><td colSpan={5} className="p-4 text-center">Loading reports...</td></tr>
+                                    <tr><td colSpan={6} className="p-4 text-center">Loading reports...</td></tr>
                                 ) : reports.length === 0 ? (
-                                    <tr><td colSpan={5} className="p-4 text-center">No reports found</td></tr>
+                                    <tr><td colSpan={6} className="p-4 text-center">No reports found</td></tr>
                                 ) : (
                                     reports.map((report) => (
                                         <tr key={report.id}>
@@ -370,6 +390,7 @@ export default function Dashboard() {
                                                     {getJobStatus(report)}
                                                 </span>
                                             </td>
+                                            <td>{formatContractPrice(report)}</td>
                                             <td>{formatDate(report.metadata?.createdAt)}</td>
                                             <td>
                                                 <div className={styles.actionsCell}>

@@ -49,7 +49,7 @@
 }
 
 .content {
-    padding: 1.5rem;
+    padding: 1.5rem 2.5rem;
 }
 
 .formGrid {
@@ -60,7 +60,9 @@
 
 @media (min-width: 768px) {
     .formGrid {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        column-gap: 3rem;
     }
 
     .fullWidth {
@@ -88,6 +90,7 @@
     color: var(--foreground);
     font-size: 0.875rem;
     width: 100%;
+    max-width: 100%;
     transition: all var(--transition-fast);
 }
 

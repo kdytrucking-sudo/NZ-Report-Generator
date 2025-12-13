@@ -24,6 +24,7 @@ export default function SettingsPage() {
 
     // Form states
     const [legalName, setLegalName] = useState("");
+    const [contactEmail, setContactEmail] = useState("");
     const [valuerJobNumber, setValuerJobNumber] = useState("");
     const [businessName, setBusinessName] = useState("");
 
@@ -37,6 +38,7 @@ export default function SettingsPage() {
                 // Initialize form fields
                 if (data) {
                     setLegalName(data.name || "");
+                    setContactEmail(data.contactEmail || "");
                     setValuerJobNumber(data.valuerJobNumber || "");
                     setBusinessName(data.businessName || "");
                 }
@@ -58,6 +60,7 @@ export default function SettingsPage() {
         try {
             await updateUserProfile(user.uid, {
                 name: legalName,
+                contactEmail: contactEmail,
                 valuerJobNumber: valuerJobNumber,
                 businessName: businessName
             });
@@ -109,6 +112,16 @@ export default function SettingsPage() {
                                     value={legalName}
                                     onChange={(e) => setLegalName(e.target.value)}
                                     placeholder="John Doe"
+                                />
+                            </div>
+                            <div className={styles.field}>
+                                <label className={styles.label}>Contact Email</label>
+                                <input
+                                    type="email"
+                                    className={styles.input}
+                                    value={contactEmail}
+                                    onChange={(e) => setContactEmail(e.target.value)}
+                                    placeholder="contact@example.com"
                                 />
                             </div>
                             <div className={styles.field}>

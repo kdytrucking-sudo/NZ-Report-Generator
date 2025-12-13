@@ -165,7 +165,7 @@
 
 .selectWrapper {
     position: relative;
-    margin-bottom: 1rem;
+    flex: 1;
 }
 
 .selectIcon {
@@ -175,6 +175,65 @@
     transform: translateY(-50%);
     pointer-events: none;
     color: #6B7280;
+}
+
+.inputRow {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.inputRow .input {
+    margin-bottom: 0;
+    flex: 1;
+}
+
+.addBtn {
+    background-color: #0066CC;
+    color: white;
+    border: none;
+    width: 48px;
+    height: 48px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.2s;
+}
+
+.addBtn:hover {
+    background-color: #0052A3;
+}
+
+.addBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.loadBtn {
+    background-color: #DBEAFE;
+    color: #1D4ED8;
+    border: none;
+    width: 48px;
+    height: 48px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.2s;
+}
+
+.loadBtn:hover {
+    background-color: #BFDBFE;
+}
+
+.loadBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* Stats Row */

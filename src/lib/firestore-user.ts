@@ -14,6 +14,7 @@ export interface UserData {
     lastLogin: any;
     createdAt?: any;
     businessName?: string;
+    contactEmail?: string;
 }
 
 export const syncUserToFirestore = async (user: User) => {

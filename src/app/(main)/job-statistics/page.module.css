@@ -63,19 +63,19 @@
     color: #0f172a;
 }
 
-/* Report Overview (5 cols) */
+/* Report Overview Grid - All cards in one row */
 .overviewGrid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 1.5rem;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 1rem;
     margin-bottom: 3rem;
 }
 
-/* Financial Summary (3 cols) */
+/* Financial Summary (4 cols) */
 .financialGrid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.5rem;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
     margin-bottom: 3rem;
 }
 
@@ -83,12 +83,57 @@
     background-color: white;
     border: 1px solid #e2e8f0;
     border-radius: 0.75rem;
-    padding: 1.5rem;
+    padding: 1.25rem;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    min-height: 140px;
+    min-height: 110px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Financial card colors */
+.financialGrid .card:nth-child(1) {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+}
+
+.financialGrid .card:nth-child(1) .cardLabel,
+.financialGrid .card:nth-child(1) .cardValue,
+.financialGrid .card:nth-child(1) .cardChange {
+    color: white;
+}
+
+.financialGrid .card:nth-child(2) {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    border: none;
+}
+
+.financialGrid .card:nth-child(2) .cardLabel,
+.financialGrid .card:nth-child(2) .cardValue,
+.financialGrid .card:nth-child(2) .cardChange {
+    color: white;
+}
+
+.financialGrid .card:nth-child(3) {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    border: none;
+}
+
+.financialGrid .card:nth-child(3) .cardLabel,
+.financialGrid .card:nth-child(3) .cardValue,
+.financialGrid .card:nth-child(3) .cardChange {
+    color: white;
+}
+
+.financialGrid .card:nth-child(4) {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    border: none;
+}
+
+.financialGrid .card:nth-child(4) .cardLabel,
+.financialGrid .card:nth-child(4) .cardValue,
+.financialGrid .card:nth-child(4) .cardChange {
+    color: white;
 }
 
 .cardLabel {
@@ -99,7 +144,7 @@
 }
 
 .cardValue {
-    font-size: 2.5rem;
+    font-size: 2rem;
     font-weight: 700;
     color: #0f172a;
     line-height: 1;
@@ -193,17 +238,21 @@
 /* Responsive */
 @media (max-width: 1024px) {
     .overviewGrid {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(4, 1fr);
     }
 
     .financialGrid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
 @media (max-width: 768px) {
     .overviewGrid {
         grid-template-columns: repeat(2, 1fr);
+    }
+
+    .financialGrid {
+        grid-template-columns: 1fr;
     }
 
     .header {

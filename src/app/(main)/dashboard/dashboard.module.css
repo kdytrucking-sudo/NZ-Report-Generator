@@ -400,3 +400,76 @@
         grid-template-columns: repeat(3, 1fr);
     }
 }
+
+/* Icon Button Styles */
+.iconAddBtn {
+    background-color: #0066CC;
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color var(--transition-fast);
+}
+
+.iconAddBtn:hover {
+    background-color: #0052A3;
+}
+
+.iconAddBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.iconLoadBtn {
+    background-color: #DBEAFE;
+    color: #1D4ED8;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color var(--transition-fast);
+}
+
+.iconLoadBtn:hover {
+    background-color: #BFDBFE;
+}
+
+.iconLoadBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.iconDeleteBtn {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color var(--transition-fast);
+}
+
+.iconDeleteBtn:hover {
+    background-color: #fecaca;
+}
+
+.iconDeleteBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

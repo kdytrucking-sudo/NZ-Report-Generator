@@ -117,120 +117,113 @@ export default function PDFExtractTestPage() {
 
     return (
         <>
-        {AlertComponent}
-        <div className={styles.container}>
-            {/* Header */}
-            <div className={styles.header}>
-                <div className={styles.titleWrapper}>
-                    <svg className={styles.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                    <h1 className={styles.title}>PDF Extract Test</h1>
-                </div>
-                {/* Global actions can go here if needed */}
-            </div>
-
-            <div className={styles.mainGrid}>
-                {/* Left Panel: AI Prompts (Editable) */}
-                <div className={styles.leftPanel}>
-                    <div>
-                        <h2 className={styles.panelTitle}>AI Prompts & Structure</h2>
-                        <p className={styles.panelDescription}>Define the instructions and JSON output format for the AI extractor.</p>
+            {AlertComponent}
+            <div className={styles.container}>
+                {/* Header */}
+                <div className={styles.header}>
+                    <div className={styles.titleWrapper}>
+                        <svg className={styles.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        <h1 className={styles.title}>PDF Extract Test</h1>
                     </div>
-
-                    <div className={styles.field}>
-                        <label className={styles.label}>System Prompt (AI's Role)</label>
-                        <textarea
-                            className={styles.textarea}
-                            value={promptData?.systemPrompt || ""}
-                            onChange={(e) => handlePromptChange("systemPrompt", e.target.value)}
-                        />
-                    </div>
-
-                    <div className={styles.field}>
-                        <label className={styles.label}>User Prompt (Main Task)</label>
-                        <textarea
-                            className={styles.textarea}
-                            value={promptData?.userPrompt || ""}
-                            onChange={(e) => handlePromptChange("userPrompt", e.target.value)}
-                        />
-                    </div>
-
-                    <div className={styles.field}>
-                        <label className={styles.label}>Extraction Hints</label>
-                        <textarea
-                            className={styles.textarea}
-                            value={promptData?.extractionHints || ""}
-                            onChange={(e) => handlePromptChange("extractionHints", e.target.value)}
-                        />
-                    </div>
-
-                    <div className={styles.field}>
-                        <label className={styles.label}>JSON Output Structure</label>
-                        <textarea
-                            className={`${styles.textarea} ${styles.codeEditor}`}
-                            value={promptData?.outputJSONStructure || ""}
-                            onChange={(e) => handlePromptChange("outputJSONStructure", e.target.value)}
-                        />
-                    </div>
-
-                    <button
-                        className={`btn ${styles.saveBtn}`}
-                        onClick={handleSaveSettings}
-                        disabled={saving}
-                    >
-                        {saving ? "Saving..." : "Save AI Settings"}
-                    </button>
+                    {/* Global actions can go here if needed */}
                 </div>
 
-                {/* Right Panel: Test Center & Results */}
-                <div className={styles.rightPanel}>
-                    <div className={styles.testCenterCard}>
-                        <h2 className={styles.panelTitle}>Test Center</h2>
-
-                        <div className={styles.uploadGroup}>
-                            <div className={styles.fileInputWrapper}>
-                                <span className={styles.fileLabel}>Upload Title:</span>
-                                <input
-                                    type="file"
-                                    accept=".pdf"
-                                    onChange={(e) => setTitleFile(e.target.files?.[0] || null)}
-                                />
-                            </div>
-                            <div className={styles.fileInputWrapper}>
-                                <span className={styles.fileLabel}>Upload Brief:</span>
-                                <input
-                                    type="file"
-                                    accept=".pdf"
-                                    onChange={(e) => setBriefFile(e.target.files?.[0] || null)}
-                                />
-                            </div>
-
+                <div className={styles.mainGrid}>
+                    {/* Left Panel: AI Prompts (Editable) */}
+                    <div className={styles.leftPanel}>
+                        <div className={styles.panelHeader}>
+                            <h2 className={styles.panelTitle}>AI Prompts & Structure</h2>
                             <button
-                                className={`btn ${styles.runBtn}`}
-                                onClick={handleRunTest}
-                                disabled={testing || !titleFile || !briefFile}
+                                className={`btn ${styles.saveBtn}`}
+                                onClick={handleSaveSettings}
+                                disabled={saving}
                             >
-                                {testing ? "Running..." : "Run Test"}
+                                {saving ? "Saving..." : "Save"}
                             </button>
                         </div>
+
+                        <div className={styles.field}>
+                            <label className={styles.label}>System Prompt (AI's Role)</label>
+                            <textarea
+                                className={styles.textarea}
+                                value={promptData?.systemPrompt || ""}
+                                onChange={(e) => handlePromptChange("systemPrompt", e.target.value)}
+                            />
+                        </div>
+
+                        <div className={styles.field}>
+                            <label className={styles.label}>User Prompt (Main Task)</label>
+                            <textarea
+                                className={styles.textarea}
+                                value={promptData?.userPrompt || ""}
+                                onChange={(e) => handlePromptChange("userPrompt", e.target.value)}
+                            />
+                        </div>
+
+                        <div className={styles.field}>
+                            <label className={styles.label}>Extraction Hints</label>
+                            <textarea
+                                className={styles.textarea}
+                                value={promptData?.extractionHints || ""}
+                                onChange={(e) => handlePromptChange("extractionHints", e.target.value)}
+                            />
+                        </div>
+
+                        <div className={styles.field}>
+                            <label className={styles.label}>JSON Output Structure</label>
+                            <textarea
+                                className={`${styles.textarea} ${styles.codeEditor}`}
+                                value={promptData?.outputJSONStructure || ""}
+                                onChange={(e) => handlePromptChange("outputJSONStructure", e.target.value)}
+                            />
+                        </div>
                     </div>
 
-                    <div className={styles.resultCard}>
-                        <div>
-                            <h2 className={styles.panelTitle}>Test Result</h2>
-                            <p className={styles.panelDescription}>The extracted JSON data from the test run will appear here.</p>
+                    {/* Right Panel: Test Center & Results */}
+                    <div className={styles.rightPanel}>
+                        <div className={styles.testCenterCard}>
+                            <h2 className={styles.panelTitle}>Test Center</h2>
+
+                            <div className={styles.uploadGroup}>
+                                <div className={styles.fileInputWrapper}>
+                                    <span className={styles.fileLabel}>Title:</span>
+                                    <input
+                                        type="file"
+                                        accept=".pdf"
+                                        onChange={(e) => setTitleFile(e.target.files?.[0] || null)}
+                                    />
+                                </div>
+                                <div className={styles.fileInputWrapper}>
+                                    <span className={styles.fileLabel}>Brief:</span>
+                                    <input
+                                        type="file"
+                                        accept=".pdf"
+                                        onChange={(e) => setBriefFile(e.target.files?.[0] || null)}
+                                    />
+                                </div>
+
+                                <button
+                                    className={`btn ${styles.runBtn}`}
+                                    onClick={handleRunTest}
+                                    disabled={testing || !titleFile || !briefFile}
+                                >
+                                    {testing ? "Running..." : "Run Test"}
+                                </button>
+                            </div>
                         </div>
-                        <div className={styles.resultOutput}>
-                            {testResult}
-                        </div>
-                        <div style={{ display: 'flex', gap: '1rem' }}>
-                            <button className="btn btn-primary" style={{ flex: 1 }}>Save Extraction Config</button>
-                            {/* Placeholder button from image */}
+
+                        <div className={styles.resultCard}>
+                            <div>
+                                <h2 className={styles.panelTitle}>Test Result</h2>
+                            </div>
+                            <div className={styles.resultOutput}>
+                                {testResult}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    
+
         </>
     );
 }

@@ -156,34 +156,32 @@ export default function MultiChoiceSettingsPage() {
                             {/* Header Section */}
                             <div className={styles.cardHeader}>
                                 <div className={styles.field}>
-                                    <label className={styles.label}>Card Name (Database ID)</label>
-                                    <div className={styles.inputWrapper}>
-                                        <input
-                                            className={styles.input}
-                                            value={card.name}
-                                            onChange={(e) => handleCardChange(cardIndex, "name", e.target.value)}
-                                            placeholder="e.g. Strengths/Opportunities"
-                                        />
-                                        <button
-                                            className={styles.deleteIconBtn}
-                                            onClick={() => handleDeleteCard(cardIndex)}
-                                            title="Delete Card"
-                                        >
-                                            <TrashIcon />
-                                        </button>
-                                    </div>
+                                    <label className={styles.label}>Card Name</label>
+                                    <input
+                                        className={styles.input}
+                                        value={card.name}
+                                        onChange={(e) => handleCardChange(cardIndex, "name", e.target.value)}
+                                        placeholder="e.g. Strengths/Opportunities"
+                                    />
                                 </div>
 
                                 <div className={styles.field}>
                                     <label className={styles.label}>Placeholder</label>
                                     <input
-                                        className={styles.input} // No delete button here, so standard input
-                                        style={{ paddingRight: '0.875rem' }}
+                                        className={styles.input}
                                         value={card.placeholder}
                                         onChange={(e) => handleCardChange(cardIndex, "placeholder", e.target.value)}
                                         placeholder="[Replace_Placeholder]"
                                     />
                                 </div>
+
+                                <button
+                                    className={styles.deleteCardBtn}
+                                    onClick={() => handleDeleteCard(cardIndex)}
+                                    title="Delete Card"
+                                >
+                                    <TrashIcon />
+                                </button>
                             </div>
 
                             {/* Body Section: 2 Columns */}

@@ -61,9 +61,10 @@
 .cardHeader {
     padding: 1.5rem;
     padding-bottom: 1rem;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
+    display: flex;
+    flex-direction: row;
+    gap: 6rem;
+    align-items: flex-end;
 }
 
 .field {
@@ -87,8 +88,6 @@
 .input {
     width: 100%;
     padding: 0.625rem 0.875rem;
-    padding-right: 2.5rem;
-    /* Space for delete icon */
     border: 1px solid #cbd5e1;
     border-radius: 6px;
     font-size: 0.875rem;
@@ -97,30 +96,37 @@
     transition: border-color 0.2s;
 }
 
+.cardHeader .input {
+    max-width: 180px;
+}
+
+.cardHeader .field:first-child .input {
+    max-width: 165px;
+}
+
 .input:focus {
     border-color: #4f46e5;
     box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
 }
 
-/* Delete button inside input */
-.deleteIconBtn {
-    position: absolute;
-    right: 0.5rem;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    color: #ef4444;
-    cursor: pointer;
-    padding: 0.25rem;
+.deleteCardBtn {
+    background-color: #ef4444;
+    color: white;
+    width: 2.5rem;
+    height: 2.5rem;
     border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    flex-shrink: 0;
+    margin-left: auto;
 }
 
-.deleteIconBtn:hover {
-    background-color: #fee2e2;
+.deleteCardBtn:hover {
+    background-color: #dc2626;
 }
 
 .cardBody {
@@ -151,17 +157,14 @@
 
 /* Left Column Specifics */
 .column:first-child {
-    width: 35%;
-    /* Fixed narrower width */
-    padding-right: 2rem;
-    /* Spacing before divider */
+    width: calc(165px + 6rem);
+    padding-right: 1rem;
 }
 
 .columnRight {
     flex: 1;
-    /* Takes remaining space */
     border-left: 1px solid #e2e8f0;
-    padding-left: 2rem;
+    padding-left: 1rem;
 }
 
 .columnHeader {
@@ -177,12 +180,20 @@
     gap: 1rem;
 }
 
+.inputStack .input {
+    max-width: 165px;
+}
+
 /* Right side row container: Input + Delete Button */
 .optionRightRow {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     width: 100%;
+}
+
+.optionRightRow .input {
+    max-width: 600px;
 }
 
 .input {
