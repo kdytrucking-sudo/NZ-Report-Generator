@@ -22,7 +22,7 @@ const escapeXml = (unsafe: string) => {
     });
 };
 
-// Helper to ensure date format 7 Dec 2025
+// Helper to ensure date format 7 December 2025
 const formatDateValue = (val: string): string => {
     if (!val) return "";
     // If it looks like a date YYYY-MM-DD
@@ -30,7 +30,7 @@ const formatDateValue = (val: string): string => {
     if (!isNaN(date.getTime()) && val.includes('-')) {
         return date.toLocaleDateString('en-NZ', {
             day: 'numeric',
-            month: 'short',
+            month: 'long',
             year: 'numeric'
         });
     }
@@ -113,15 +113,42 @@ export async function POST(req: NextRequest) {
         const zip = new JSZip();
         await zip.loadAsync(arrayBuffer);
 
-        // Read document.xml
-        const docXmlPath = "word/document.xml";
-        if (zip.file(docXmlPath)) {
-            let docXml = await zip.file(docXmlPath)!.async("string");
+        // Debug: List all files in the ZIP
+        console.log('\n📦 Files in Word document:');
+        zip.forEach((relativePath, file) => {
+            if (relativePath.startsWith('word/')) {
+                console.log(`  - ${relativePath}`);
+            }
+        });
+        console.log('');
 
-            // NEW APPROACH: Don't modify the XML structure at all
-            // Instead, handle placeholders that might be split by XML tags
+        // Debug: Search for FooterAddress in ALL files
+        console.log('🔍 Searching for Replace_FooterAddress in all files...');
+        const searchPromises: Promise<void>[] = [];
+        zip.forEach((relativePath, file) => {
+            if (relativePath.endsWith('.xml')) {
+                searchPromises.push(
+                    file.async("string").then(content => {
+                        if (content.includes('Replace_FooterAddress')) {
+                            console.log(`✨ FOUND in ${relativePath}!`);
+                            const index = content.indexOf('Replace_FooterAddress');
+                            const start = Math.max(0, index - 150);
+                            const end = Math.min(content.length, index + 200);
+                            console.log('Context:');
+                            console.log(content.substring(start, end));
+                            console.log('---');
+                        }
+                    })
+                );
+            }
+        });
+        await Promise.all(searchPromises);
+        console.log('🔍 Search complete.\n');
 
-            // Perform Replacements
+        // Helper function to perform replacements on XML content
+        const performReplacements = (xmlContent: string, fileName: string): string => {
+            let modifiedXml = xmlContent;
+
             Object.keys(replacements).forEach(key => {
                 const value = replacements[key];
 
@@ -141,13 +168,13 @@ export async function POST(req: NextRequest) {
                 // Strategy 1: Direct replacement (for placeholders that aren't split)
                 const escapedKey = key.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                 let regex = new RegExp(escapedKey, "g");
-                let matches = docXml.match(regex);
+                let matches = modifiedXml.match(regex);
                 let replaced = false;
 
                 if (matches && matches.length > 0) {
-                    docXml = docXml.replace(regex, safeValue);
+                    modifiedXml = modifiedXml.replace(regex, safeValue);
                     replaced = true;
-                    console.log(`✅ Direct replacement: "${key}" ${matches.length} time(s)`);
+                    console.log(`✅ [${fileName}] Direct replacement: "${key}" ${matches.length} time(s)`);
                 } else {
                     // Strategy 2: Handle split placeholders
                     // Create a regex that allows XML tags between characters
@@ -166,7 +193,7 @@ export async function POST(req: NextRequest) {
                         .join('(?:<[^>]+>)*'); // Allow zero or more XML tags between each character
 
                     const flexibleRegex = new RegExp(flexiblePattern, 'g');
-                    const flexibleMatches = docXml.match(flexibleRegex);
+                    const flexibleMatches = modifiedXml.match(flexibleRegex);
 
                     if (flexibleMatches && flexibleMatches.length > 0) {
                         // Replace each match
@@ -177,24 +204,72 @@ export async function POST(req: NextRequest) {
                             // Verify this is actually our placeholder
                             if (textOnly === key) {
                                 // Replace the entire match (including XML tags) with our value wrapped in proper tags
-                                docXml = docXml.replace(match, `<w:t xml:space="preserve">${safeValue}</w:t>`);
+                                modifiedXml = modifiedXml.replace(match, `<w:t xml:space="preserve">${safeValue}</w:t>`);
                                 replaced = true;
                             }
                         });
 
                         if (replaced) {
-                            console.log(`✅ Flexible replacement: "${key}" ${flexibleMatches.length} time(s)`);
+                            console.log(`✅ [${fileName}] Flexible replacement: "${key}" ${flexibleMatches.length} time(s)`);
                         }
                     }
                 }
 
                 if (!replaced) {
-                    console.warn(`⚠️  Placeholder "${key}" not found in document`);
+                    // Only warn if not found in document.xml (main file)
+                    // Footer/Header files may not contain all placeholders
+                    if (fileName === 'document.xml') {
+                        console.warn(`⚠️  Placeholder "${key}" not found in ${fileName}`);
+                    }
                 }
             });
 
-            // Write back to zip
-            zip.file(docXmlPath, docXml);
+            return modifiedXml;
+        };
+
+        // Dynamically discover all footer and header files in the template
+        const filesToProcess: string[] = ["word/document.xml"];
+
+        zip.forEach((relativePath, file) => {
+            // Add all footer and header XML files
+            if (relativePath.match(/^word\/(footer|header)\d+\.xml$/)) {
+                filesToProcess.push(relativePath);
+            }
+        });
+
+        console.log('📝 Files to process for placeholder replacement:');
+        filesToProcess.forEach(f => console.log(`  - ${f}`));
+        console.log('');
+
+        // Process each file if it exists in the template
+        for (const filePath of filesToProcess) {
+            const file = zip.file(filePath);
+            if (file) {
+                const fileName = filePath.split('/').pop() || filePath;
+                console.log(`📄 Processing ${fileName}...`);
+
+                let xmlContent = await file.async("string");
+
+                // Special debugging for FooterAddress placeholder
+                if (xmlContent.includes('Replace_FooterAddress')) {
+                    console.log(`🔍 [${fileName}] Contains FooterAddress placeholder!`);
+                    console.log(`🔍 [${fileName}] File size: ${xmlContent.length} characters`);
+
+                    // Find the context around the placeholder
+                    const index = xmlContent.indexOf('Replace_FooterAddress');
+                    if (index !== -1) {
+                        const start = Math.max(0, index - 100);
+                        const end = Math.min(xmlContent.length, index + 150);
+                        console.log(`🔍 [${fileName}] Context around placeholder:`);
+                        console.log(xmlContent.substring(start, end));
+                    }
+                }
+
+                xmlContent = performReplacements(xmlContent, fileName);
+                zip.file(filePath, xmlContent);
+
+                console.log(`✓ Completed processing ${fileName}`);
+            }
         }
 
         // 6. Generate New buffer

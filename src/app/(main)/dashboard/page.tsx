@@ -171,7 +171,7 @@ export default function Dashboard() {
 
         if (isNaN(date.getTime())) return "N/A";
 
-        return date.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' });
+        return date.toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' });
     };
 
     const formatTime = (timestamp: any) => {

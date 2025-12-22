@@ -23,7 +23,7 @@ export const formatDateForStorage = (isoDateString: string): string => {
 
     return date.toLocaleDateString('en-NZ', {
         day: 'numeric',
-        month: 'short',
+        month: 'long',
         year: 'numeric'
     });
 };

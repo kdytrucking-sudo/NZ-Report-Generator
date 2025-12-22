@@ -265,6 +265,18 @@ export default function PreprocessPage() {
         if (!report || !user) return;
 
         const data = staticData as StaticInformation;
+
+        // Debug: Log the static data
+        console.log('[Static Debug] Static Data:', data);
+        console.log('[Static Debug] Placeholders:', {
+            nzEconomyOverview_ph: data.nzEconomyOverview_ph,
+            globalEconomyOverview_ph: data.globalEconomyOverview_ph,
+            residentialMarket_ph: data.residentialMarket_ph,
+            recentMarketDirection_ph: data.recentMarketDirection_ph,
+            marketVolatility_ph: data.marketVolatility_ph,
+            localEconomyImpact_ph: data.localEconomyImpact_ph
+        });
+
         const mapping = [
             { key: 'nzEconomyOverview', placeholder: data.nzEconomyOverview_ph || '{%NZ_Economy_Overview}' },
             { key: 'globalEconomyOverview', placeholder: data.globalEconomyOverview_ph || '{%Global_Economy_Overview}' },
@@ -288,10 +300,15 @@ export default function PreprocessPage() {
                     type: 'string',
                     ifValidation: false
                 };
+                console.log(`[Static Debug] Added field: ${m.key}, placeholder: ${m.placeholder}, value length: ${val.length}`);
             }
         });
 
+        console.log('[Static Debug] Source Fields:', sourceFields);
+
         const updatedReport = syncReportFields(report, sourceFields);
+
+        console.log('[Static Debug] Updated Report:', updatedReport);
 
         try {
             const { metadata, baseInfo, content } = updatedReport;
@@ -342,6 +359,7 @@ export default function PreprocessPage() {
     const [statLand, setStatLand] = useState("");
     const [statImprovements, setStatImprovements] = useState("");
     const [statRating, setStatRating] = useState("");
+    const [statMatch, setStatMatch] = useState<'equal' | 'error' | null>(null);
 
     // State for placeholders (default values)
     const [phMarketValue, setPhMarketValue] = useState('[Replace_MarketValue]');
@@ -411,7 +429,47 @@ export default function PreprocessPage() {
         setMvNarrative(text);
     };
 
+    // Format all Market Value inputs to currency format
+    const formatAllMarketValueInputs = () => {
+        // Format Market Value inputs
+        if (mvInput) {
+            const num = parseNumber(mvInput);
+            if (!isNaN(num)) setMvInput(formatCurrency(num));
+        }
+
+        // Format Breakdown inputs
+        if (bdImprovements) {
+            const num = parseNumber(bdImprovements);
+            if (!isNaN(num)) setBdImprovements(formatCurrency(num));
+        }
+        if (bdLand) {
+            const num = parseNumber(bdLand);
+            if (!isNaN(num)) setBdLand(formatCurrency(num));
+        }
+        if (bdChattels) {
+            const num = parseNumber(bdChattels);
+            if (!isNaN(num)) setBdChattels(formatCurrency(num));
+        }
+
+        // Format Statutory inputs
+        if (statLand) {
+            const num = parseNumber(statLand);
+            if (!isNaN(num)) setStatLand(formatCurrency(num));
+        }
+        if (statImprovements) {
+            const num = parseNumber(statImprovements);
+            if (!isNaN(num)) setStatImprovements(formatCurrency(num));
+        }
+        if (statRating) {
+            const num = parseNumber(statRating);
+            if (!isNaN(num)) setStatRating(formatCurrency(num));
+        }
+    };
+
     const handleBdSum = () => {
+        // First format all inputs
+        formatAllMarketValueInputs();
+
         const imp = parseNumber(bdImprovements) || 0;
         const land = parseNumber(bdLand) || 0;
         const chat = parseNumber(bdChattels) || 0;
@@ -423,6 +481,27 @@ export default function PreprocessPage() {
         setBdMatch(Math.abs(sum - mvNum) < 1 ? 'equal' : 'error');
     };
 
+    // New handler for Statutory Valuation Check button
+    const handleStatCheck = () => {
+        // First format all inputs
+        formatAllMarketValueInputs();
+
+        const land = parseNumber(statLand) || 0;
+        const improvements = parseNumber(statImprovements) || 0;
+        const rating = parseNumber(statRating) || 0;
+
+        const sum = land + improvements;
+
+        // If rating is empty, fill it with the sum
+        if (!statRating || statRating.trim() === '') {
+            setStatRating(formatCurrency(sum));
+            setStatMatch(null); // No match status when auto-filling
+        } else {
+            // Check if sum equals rating
+            setStatMatch(Math.abs(sum - rating) < 1 ? 'equal' : 'error');
+        }
+    };
+
     const handleCopyOpenAddress = () => {
         const address = report?.baseInfo?.fields?.['address']?.value || "7/20 William Souter Street, Forrest Hill, Auckland";
         navigator.clipboard.writeText(address);
@@ -431,6 +510,9 @@ export default function PreprocessPage() {
 
     const handleUpdateMarketValueToReport = async () => {
         if (!report || !user) return;
+
+        // Format all inputs before saving
+        formatAllMarketValueInputs();
 
         const sourceFields: { [key: string]: ReportField } = {};
 
@@ -497,18 +579,29 @@ export default function PreprocessPage() {
         }
     };
 
+    // Helper function to format list with proper comma and "and" logic
+    const formatListWithAnd = (items: string[]): string => {
+        if (items.length === 0) return "";
+        if (items.length === 1) return items[0];
+        if (items.length === 2) return items.join(" and ");
+        // For 3 or more items: "item1, item2, and item3"
+        const allButLast = items.slice(0, -1);
+        const last = items[items.length - 1];
+        return allButLast.join(", ") + ", and " + last;
+    };
+
     const generateConstructText = (cIds: string[], iIds: string[], cSettings: ConstructSettings | null) => {
         if (!cSettings) return "";
         let text = "";
         if (cIds.length > 0) {
             const labels = cSettings.elements.filter(e => cIds.includes(e.id)).map(e => e.label);
-            if (labels.length > 0) text += "General construction elements comprise what appears to be " + labels.join(", ") + ".";
+            if (labels.length > 0) text += "General construction elements comprise what appears to be " + formatListWithAnd(labels) + ".";
         }
         if (iIds.length > 0) {
             const labels = cSettings.interiorElements.filter(e => iIds.includes(e.id)).map(e => e.label);
             if (labels.length > 0) {
                 if (text) text += "\n";
-                text += "The interior appears to be mostly timber framed with " + labels.join(", ") + ".";
+                text += "The interior appears to be mostly timber framed with " + formatListWithAnd(labels) + ".";
             }
         }
         return text;
@@ -518,7 +611,7 @@ export default function PreprocessPage() {
         if (!chSettings) return "";
         if (chIds.length > 0) {
             const labels = chSettings.list.filter(e => chIds.includes(e.id)).map(e => e.label);
-            if (labels.length > 0) return "We have included in our valuation an allowance for " + labels.join(", ") + ".";
+            if (labels.length > 0) return "We have included in our valuation an allowance for " + formatListWithAnd(labels) + ".";
         }
         return "";
     };
@@ -1499,12 +1592,27 @@ export default function PreprocessPage() {
                                                         P
                                                     </span>
                                                 </label>
-                                                <input
-                                                    className={styles.marketValueInput}
-                                                    placeholder="550,000"
-                                                    value={statRating}
-                                                    onChange={(e) => setStatRating(e.target.value)}
-                                                />
+                                                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                                    <input
+                                                        className={styles.marketValueInput}
+                                                        placeholder="550,000"
+                                                        value={statRating}
+                                                        onChange={(e) => setStatRating(e.target.value)}
+                                                    />
+                                                    {statMatch === 'equal' && (
+                                                        <span className={`${styles.marketValueStatus} ${styles.marketValueStatusSuccess}`}>
+                                                            ✓ Equal
+                                                        </span>
+                                                    )}
+                                                    {statMatch === 'error' && (
+                                                        <span className={`${styles.marketValueStatus} ${styles.marketValueStatusError}`}>
+                                                            ✗ Error
+                                                        </span>
+                                                    )}
+                                                    <button className={styles.marketValueButtonSecondary} onClick={handleStatCheck}>
+                                                        Check
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -1743,7 +1851,12 @@ export default function PreprocessPage() {
                                                             <textarea
                                                                 className={styles.roomTextarea}
                                                                 value={room.textValue}
-                                                                readOnly
+                                                                onChange={(e) => {
+                                                                    const newRooms = [...addedRooms];
+                                                                    newRooms[idx].textValue = e.target.value;
+                                                                    setAddedRooms(newRooms);
+                                                                }}
+                                                                placeholder="Select options or type custom text..."
                                                             />
                                                         </div>
                                                     </div>
