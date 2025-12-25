@@ -9,6 +9,7 @@ import { uploadReportFile } from "@/lib/storage-reports";
 import { getPDFExtractPrompt } from "@/lib/firestore-ai";
 import { getStaticInfo, StaticInformation } from "@/lib/firestore-static";
 import { getMultiChoiceCards, MultiChoiceCard } from "@/lib/firestore-multi-choice";
+import { getTextTemplateCards, TextTemplateCard } from "@/lib/firestore-text-templates";
 import { formatDateForInput, formatDateForStorage } from "@/lib/date-utils";
 import {
     getConstructSettings,
@@ -30,7 +31,7 @@ export default function PreprocessPage() {
     const [report, setReport] = useState<Report | null>(null);
 
     // Status State
-    const [activeTab, setActiveTab] = useState<'ai-extract' | 'static-info' | 'swot' | 'construct-chattels' | 'market-value' | 'room-option'>('ai-extract');
+    const [activeTab, setActiveTab] = useState<'ai-extract' | 'static-info' | 'mpi' | 'swot' | 'construct-chattels' | 'market-value' | 'room-option'>('ai-extract');
     const [initDone, setInitDone] = useState(false);
 
     // File Upload State
@@ -386,6 +387,11 @@ export default function PreprocessPage() {
     const [selectedRoomTemplate, setSelectedRoomTemplate] = useState<string>("");
     const [roomLoading, setRoomLoading] = useState(false);
     const [nextRoomId, setNextRoomId] = useState(1);
+
+    // MPI (Text Templates) State
+    const [mpiCards, setMpiCards] = useState<TextTemplateCard[]>([]);
+    const [mpiSelections, setMpiSelections] = useState<{ [cardId: string]: { selectedOptions: string[], textValue: string } }>({});
+    const [mpiLoading, setMpiLoading] = useState(false);
 
     // Helper: Number to Words
     const numberToWords = (num: number): string => {
@@ -796,6 +802,97 @@ export default function PreprocessPage() {
     };
 
     // ==========================
+    // MPI (Text Templates) Handlers
+    // ==========================
+    const handleLoadMPI = async () => {
+        if (!user) return;
+        setMpiLoading(true);
+        try {
+            const allCards = await getTextTemplateCards(user.uid);
+            setMpiCards(allCards);
+            const initialSelections: any = {};
+            allCards.forEach(card => {
+                initialSelections[card.id] = { selectedOptions: [], textValue: "" };
+            });
+            setMpiSelections(initialSelections);
+        } catch (error) {
+            console.error(error);
+            showAlert("Failed to load Text Templates data.");
+        } finally {
+            setMpiLoading(false);
+        }
+    };
+
+    const handleMpiOptionToggle = (cardId: string, optionId: string) => {
+        setMpiSelections(prev => {
+            const cardState = prev[cardId] || { selectedOptions: [], textValue: "" };
+            const isSelected = cardState.selectedOptions.includes(optionId);
+            let newOptions;
+            if (isSelected) {
+                newOptions = cardState.selectedOptions.filter(o => o !== optionId);
+            } else {
+                newOptions = [...cardState.selectedOptions, optionId];
+            }
+            const card = mpiCards.find(c => c.id === cardId);
+            const textLines = newOptions.map(optId => {
+                const opt = card?.options.find(o => o.id === optId);
+                return opt ? opt.value : ""; // Use value for multi-line content
+            }).filter(v => v); // Remove empty values
+            return { ...prev, [cardId]: { selectedOptions: newOptions, textValue: textLines.join("\n") } };
+        });
+    };
+
+    const handleMpiTextChange = (cardId: string, text: string) => {
+        setMpiSelections(prev => ({ ...prev, [cardId]: { ...prev[cardId], textValue: text } }));
+    };
+
+    const handleUpdateMpiToReport = async () => {
+        if (!report || !user) return;
+        const sourceFields: { [key: string]: ReportField } = {};
+        mpiCards.forEach((card, idx) => {
+            const selection = mpiSelections[card.id];
+            if (selection && card.placeholder) {
+                // Normalize line breaks to \n for consistency
+                let normalizedValue = selection.textValue || "";
+
+                // Log for debugging
+                console.log(`[MPI Debug] Card: ${card.name}`);
+                console.log(`[MPI Debug] Original value:`, JSON.stringify(normalizedValue));
+
+                // Normalize: Convert all line breaks to \n
+                normalizedValue = normalizedValue.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+                console.log(`[MPI Debug] Normalized value:`, JSON.stringify(normalizedValue));
+
+                sourceFields[`mpi_${idx}`] = {
+                    id: `mpi_${idx}`,
+                    label: card.name,
+                    placeholder: card.placeholder,
+                    value: normalizedValue,
+                    displayType: 'textarea',
+                    type: 'string',
+                    ifValidation: false
+                };
+            }
+        });
+        const updatedReport = syncReportFields(report, sourceFields);
+        try {
+            const { metadata, baseInfo, content } = updatedReport;
+            await updateReport(user.uid, report.id, {
+                metadata,
+                baseInfo,
+                content,
+                status: 'Preprocess:MPI' // Update status
+            });
+            setReport({ ...updatedReport, status: 'Preprocess:MPI' });
+            showAlert("Text Templates data updated to report!");
+        } catch (e) {
+            console.error(e);
+            showAlert("Failed to update report with Text Templates data.");
+        }
+    };
+
+    // ==========================
     // Room Option Handlers
     // ==========================
     const handleLoadRoomSettings = async () => {
@@ -1046,8 +1143,15 @@ export default function PreprocessPage() {
                     <button
                         className={`${styles.tab} ${activeTab === 'static-info' ? styles.activeTab : ''}`}
                         onClick={() => setActiveTab('static-info')}
+                        style={{ display: 'none' }} // Hidden but kept for future use
                     >
                         Static Info
+                    </button>
+                    <button
+                        className={`${styles.tab} ${activeTab === 'mpi' ? styles.activeTab : ''}`}
+                        onClick={() => setActiveTab('mpi')}
+                    >
+                        MPI
                     </button>
                     <button
                         className={`${styles.tab} ${activeTab === 'swot' ? styles.activeTab : ''}`}
@@ -1364,6 +1468,73 @@ export default function PreprocessPage() {
                                                                 value={selection.textValue}
                                                                 onChange={(e) => handleSwotTextChange(card.id, e.target.value)}
                                                                 placeholder="Select options from the left or type here..."
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'mpi' && (
+                            <div className={styles.card}>
+                                <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
+                                    <h2 className={styles.cardTitle} style={{ border: 'none', marginBottom: 0 }}>MPI (Text Templates)</h2>
+                                    <div style={{ display: 'flex', gap: '1rem' }}>
+                                        <button className={styles.secondaryBtn} onClick={handleLoadMPI} disabled={mpiLoading}>
+                                            {mpiLoading ? "Loading..." : "Load From Settings"}
+                                        </button>
+                                        <button className={styles.primaryBtn} onClick={handleUpdateMpiToReport} disabled={mpiCards.length === 0}>
+                                            Update to Report
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {mpiCards.length === 0 ? (
+                                    <div className="flex items-center justify-center h-20 text-gray-400">
+                                        Click "Load From Settings" to fetch your text templates.
+                                    </div>
+                                ) : (
+                                    <div>
+                                        {mpiCards.map((card) => {
+                                            const selection = mpiSelections[card.id] || { selectedOptions: [], textValue: "" };
+
+                                            return (
+                                                <div key={card.id} className={styles.swotCard}>
+                                                    <div className={styles.swotHeader}>
+                                                        <span className={styles.swotTitle}>{card.name}</span>
+                                                        <span className={styles.swotPlaceholder}>{card.placeholder}</span>
+                                                    </div>
+
+                                                    <div className={styles.swotBody}>
+                                                        {/* Options Column */}
+                                                        <div className={styles.swotLeft}>
+                                                            <div className="space-y-1 flex-1 overflow-y-auto">
+                                                                {card.options.map(option => (
+                                                                    <label key={option.id} className="flex items-start gap-2 cursor-pointer p-2 hover:bg-white rounded transition-colors text-sm">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            className="mt-1"
+                                                                            checked={selection.selectedOptions.includes(option.id)}
+                                                                            onChange={() => handleMpiOptionToggle(card.id, option.id)}
+                                                                        />
+                                                                        <span className="text-gray-700">{option.label}</span>
+                                                                    </label>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Text Area Column */}
+                                                        <div className={styles.swotRight}>
+                                                            <textarea
+                                                                className={styles.textarea}
+                                                                style={{ flex: 1, minHeight: '200px', resize: 'vertical' }}
+                                                                value={selection.textValue}
+                                                                onChange={(e) => handleMpiTextChange(card.id, e.target.value)}
+                                                                placeholder={`Select options from the left or type multi-line text here...\nPlaceholder: ${card.placeholder}`}
                                                             />
                                                         </div>
                                                     </div>

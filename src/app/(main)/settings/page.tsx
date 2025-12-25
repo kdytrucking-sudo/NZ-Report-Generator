@@ -221,6 +221,10 @@ export default function SettingsPage() {
                             <span className={styles.itemLabel}>Preset Multi-Choice Content Settings</span>
                             <ArrowIcon className={styles.arrowIcon} />
                         </Link>
+                        <Link href="/settings/report/text-templates" className={styles.settingsItem}>
+                            <span className={styles.itemLabel}>Text Templates Settings</span>
+                            <ArrowIcon className={styles.arrowIcon} />
+                        </Link>
                         <Link href="/settings/construct-chattels" className={styles.settingsItem}>
                             <span className={styles.itemLabel}>Construct / Chattels Settings</span>
                             <ArrowIcon className={styles.arrowIcon} />
