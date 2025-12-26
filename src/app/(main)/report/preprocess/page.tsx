@@ -395,11 +395,15 @@ export default function PreprocessPage() {
 
     // Helper: Number to Words
     const numberToWords = (num: number): string => {
+        // Ensure we're working with an integer
+        num = Math.round(num);
+
         const a = ['', 'one ', 'two ', 'three ', 'four ', 'five ', 'six ', 'seven ', 'eight ', 'nine ', 'ten ', 'eleven ', 'twelve ', 'thirteen ', 'fourteen ', 'fifteen ', 'sixteen ', 'seventeen ', 'eighteen ', 'nineteen '];
         const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
 
         const numToText = (n: number): string => {
-            if ((n = n.toString().length > 9 ? parseFloat(n.toString().slice(0, 9)) : n) === 0) return '';
+            n = Math.floor(n); // Ensure integer at each step
+            if (n === 0) return '';
             if (n < 20) return a[n];
             if (n < 100) return b[Math.floor(n / 10)] + ' ' + a[n % 10];
             if (n < 1000) return a[Math.floor(n / 100)] + 'hundred ' + numToText(n % 100);
@@ -408,9 +412,10 @@ export default function PreprocessPage() {
             return '';
         }
 
-        if (num === 0) return 'zero';
+        if (num === 0) return 'Zero';
         let str = numToText(num);
-        return str.trim().replace(/\s+/g, ' ').replace(/^./, c => c.toUpperCase());
+        // Capitalize the first letter of each word
+        return str.trim().replace(/\s+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     };
 
     const formatCurrency = (val: string | number) => {
@@ -429,7 +434,8 @@ export default function PreprocessPage() {
         if (isNaN(num)) return;
 
         const fmt = formatCurrency(num);
-        const text = numberToWords(num) + " Dollars";
+        // Round to integer before converting to words since currency is displayed without decimals
+        const text = numberToWords(Math.round(num)) + " Dollars";
 
         setMvFormatted(fmt);
         setMvNarrative(text);
