@@ -267,17 +267,6 @@ export default function PreprocessPage() {
 
         const data = staticData as StaticInformation;
 
-        // Debug: Log the static data
-        console.log('[Static Debug] Static Data:', data);
-        console.log('[Static Debug] Placeholders:', {
-            nzEconomyOverview_ph: data.nzEconomyOverview_ph,
-            globalEconomyOverview_ph: data.globalEconomyOverview_ph,
-            residentialMarket_ph: data.residentialMarket_ph,
-            recentMarketDirection_ph: data.recentMarketDirection_ph,
-            marketVolatility_ph: data.marketVolatility_ph,
-            localEconomyImpact_ph: data.localEconomyImpact_ph
-        });
-
         const mapping = [
             { key: 'nzEconomyOverview', placeholder: data.nzEconomyOverview_ph || '{%NZ_Economy_Overview}' },
             { key: 'globalEconomyOverview', placeholder: data.globalEconomyOverview_ph || '{%Global_Economy_Overview}' },
@@ -301,15 +290,10 @@ export default function PreprocessPage() {
                     type: 'string',
                     ifValidation: false
                 };
-                console.log(`[Static Debug] Added field: ${m.key}, placeholder: ${m.placeholder}, value length: ${val.length}`);
             }
         });
 
-        console.log('[Static Debug] Source Fields:', sourceFields);
-
         const updatedReport = syncReportFields(report, sourceFields);
-
-        console.log('[Static Debug] Updated Report:', updatedReport);
 
         try {
             const { metadata, baseInfo, content } = updatedReport;
@@ -740,18 +724,8 @@ export default function PreprocessPage() {
                 // Convert all line breaks to \n (LF) for consistency
                 let normalizedValue = selection.textValue || "";
 
-                // Log original value for debugging
-                console.log(`[SWOT Debug] Card: ${card.name}`);
-                console.log(`[SWOT Debug] Original value:`, JSON.stringify(normalizedValue));
-                console.log(`[SWOT Debug] Has \\r\\n:`, normalizedValue.includes('\r\n'));
-                console.log(`[SWOT Debug] Has \\n:`, normalizedValue.includes('\n'));
-                console.log(`[SWOT Debug] Has \\r:`, normalizedValue.includes('\r'));
-
                 // Normalize: Convert all line breaks to \n
                 normalizedValue = normalizedValue.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-
-                // Log normalized value
-                console.log(`[SWOT Debug] Normalized value:`, JSON.stringify(normalizedValue));
 
                 // Update the original placeholder
                 sourceFields[`swot_${idx}`] = {
@@ -854,10 +828,7 @@ export default function PreprocessPage() {
     };
 
     const handleUpdateMpiToReport = async () => {
-        if (!report || !user) {
-            console.log("[MPI] ⚠️ Early return - no report or user");
-            return;
-        }
+        if (!report || !user) return;
 
         const sourceFields: { [key: string]: ReportField } = {};
         mpiCards.forEach((card, idx) => {
@@ -882,8 +853,6 @@ export default function PreprocessPage() {
                     type: 'string',
                     ifValidation: false
                 };
-            } else {
-                console.log(`[MPI Card ${idx}] ⚠️ SKIPPED - Missing selection or placeholder`);
             }
         });
 
@@ -1009,7 +978,6 @@ export default function PreprocessPage() {
                     targetSection = updatedReport.content[firstSectionKey];
                     targetFieldOrder = targetSection.fieldOrder || [];
                     insertPosition = targetFieldOrder.length; // Insert at the end
-                    console.log('[Room Option] [Replace_LayoutAmenities] not found, inserting at end of first section:', firstSectionKey);
                 } else {
                     showAlert("No content sections found in report structure.");
                     return;
@@ -1022,12 +990,7 @@ export default function PreprocessPage() {
                 } else {
                     insertPosition = targetFieldOrder.length; // Fallback to end
                 }
-                console.log('[Room Option] Found target section:', targetSection.id);
-                console.log('[Room Option] Target field key:', targetFieldKey);
             }
-
-            console.log('[Room Option] Current field order:', targetFieldOrder);
-            console.log('[Room Option] Will insert at position:', insertPosition);
 
             // Remove any existing room option fields (cleanup old data)
             const fieldsToRemove: string[] = [];
@@ -1052,8 +1015,6 @@ export default function PreprocessPage() {
                     }
                 }
             });
-
-            console.log('[Room Option] Removed old room fields:', fieldsToRemove);
 
             // Insert new room data
             const newFieldKeys: string[] = [];
@@ -1091,9 +1052,6 @@ export default function PreprocessPage() {
             // Insert the new field keys into fieldOrder at the correct position
             targetFieldOrder.splice(insertPosition, 0, ...newFieldKeys);
             targetSection.fieldOrder = targetFieldOrder;
-
-            console.log('[Room Option] Added new fields:', newFieldKeys);
-            console.log('[Room Option] Updated field order:', targetFieldOrder);
 
             // Update the report in Firestore
             const { metadata, baseInfo, content } = updatedReport;
