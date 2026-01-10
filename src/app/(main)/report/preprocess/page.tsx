@@ -214,7 +214,7 @@ export default function PreprocessPage() {
             sourceFields[`extracted_${idx}`] = {
                 id: `extracted_${idx}`,
                 label: item.label || "Unknown",
-                placeholder: item.placeholder,
+                placeholder: item.placeholder?.trim() || "",
                 value: extractValues[idx],
                 displayType: 'text',
                 type: 'string',
@@ -295,7 +295,7 @@ export default function PreprocessPage() {
                 sourceFields[`static_${idx}`] = {
                     id: `static_${idx}`,
                     label: m.key,
-                    placeholder: m.placeholder,
+                    placeholder: m.placeholder?.trim() || "",
                     value: val,
                     displayType: 'textarea',
                     type: 'string',
@@ -662,11 +662,11 @@ export default function PreprocessPage() {
 
         if (constructData.replaceholder) {
             const targetId = findFieldId(constructData.replaceholder) || 'construct_desc';
-            sourceFields[targetId] = { id: targetId, label: 'Construct Description', placeholder: constructData.replaceholder, value: constructText, displayType: 'textarea', type: 'string', ifValidation: false };
+            sourceFields[targetId] = { id: targetId, label: 'Construct Description', placeholder: constructData.replaceholder.trim(), value: constructText, displayType: 'textarea', type: 'string', ifValidation: false };
         }
         if (chattelsData.replaceholder) {
             const targetId = findFieldId(chattelsData.replaceholder) || 'chattels_desc';
-            sourceFields[targetId] = { id: targetId, label: 'Chattels Description', placeholder: chattelsData.replaceholder, value: chattelsText, displayType: 'textarea', type: 'string', ifValidation: false };
+            sourceFields[targetId] = { id: targetId, label: 'Chattels Description', placeholder: chattelsData.replaceholder.trim(), value: chattelsText, displayType: 'textarea', type: 'string', ifValidation: false };
         }
 
         const updatedReport = syncReportFields(report, sourceFields);
@@ -757,7 +757,7 @@ export default function PreprocessPage() {
                 sourceFields[`swot_${idx}`] = {
                     id: `swot_${idx}`,
                     label: card.name,
-                    placeholder: card.placeholder,
+                    placeholder: card.placeholder.trim(),
                     value: normalizedValue,  // Use normalized value
                     displayType: 'textarea',
                     type: 'string',
@@ -767,7 +767,8 @@ export default function PreprocessPage() {
                 // Also update the corresponding "1" placeholder with the same value
                 // [Replace_Strengths] -> [Replace_Strengths1]
                 // [Replace_Weaknesses] -> [Replace_Weaknesses1]
-                if (card.placeholder === '[Replace_Strengths]') {
+                const trimmedPlaceholder = card.placeholder.trim();
+                if (trimmedPlaceholder === '[Replace_Strengths]') {
                     sourceFields[`swot_${idx}_1`] = {
                         id: `swot_${idx}_1`,
                         label: card.name + '1',
@@ -777,7 +778,7 @@ export default function PreprocessPage() {
                         type: 'string',
                         ifValidation: false
                     };
-                } else if (card.placeholder === '[Replace_Weaknesses]') {
+                } else if (trimmedPlaceholder === '[Replace_Weaknesses]') {
                     sourceFields[`swot_${idx}_1`] = {
                         id: `swot_${idx}_1`,
                         label: card.name + '1',
@@ -853,35 +854,41 @@ export default function PreprocessPage() {
     };
 
     const handleUpdateMpiToReport = async () => {
-        if (!report || !user) return;
+        if (!report || !user) {
+            console.log("[MPI] ⚠️ Early return - no report or user");
+            return;
+        }
+
         const sourceFields: { [key: string]: ReportField } = {};
         mpiCards.forEach((card, idx) => {
             const selection = mpiSelections[card.id];
+
             if (selection && card.placeholder) {
+                // Trim whitespace from placeholder to ensure matching
+                const trimmedPlaceholder = card.placeholder.trim();
+
                 // Normalize line breaks to \n for consistency
                 let normalizedValue = selection.textValue || "";
-
-                // Log for debugging
-                console.log(`[MPI Debug] Card: ${card.name}`);
-                console.log(`[MPI Debug] Original value:`, JSON.stringify(normalizedValue));
 
                 // Normalize: Convert all line breaks to \n
                 normalizedValue = normalizedValue.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-                console.log(`[MPI Debug] Normalized value:`, JSON.stringify(normalizedValue));
-
                 sourceFields[`mpi_${idx}`] = {
                     id: `mpi_${idx}`,
                     label: card.name,
-                    placeholder: card.placeholder,
+                    placeholder: trimmedPlaceholder,  // Use trimmed version
                     value: normalizedValue,
                     displayType: 'textarea',
                     type: 'string',
                     ifValidation: false
                 };
+            } else {
+                console.log(`[MPI Card ${idx}] ⚠️ SKIPPED - Missing selection or placeholder`);
             }
         });
+
         const updatedReport = syncReportFields(report, sourceFields);
+
         try {
             const { metadata, baseInfo, content } = updatedReport;
             await updateReport(user.uid, report.id, {
@@ -1060,7 +1067,7 @@ export default function PreprocessPage() {
                 targetSection.fields[nameFieldId] = {
                     id: nameFieldId,
                     label: `Room ${room.id} Name`,
-                    placeholder: room.placeholderName,
+                    placeholder: room.placeholderName?.trim() || "",
                     value: room.roomName,
                     displayType: 'text',
                     type: 'string',
@@ -1071,7 +1078,7 @@ export default function PreprocessPage() {
                 targetSection.fields[textFieldId] = {
                     id: textFieldId,
                     label: `Room ${room.id} Options`,
-                    placeholder: room.placeholderText,
+                    placeholder: room.placeholderText?.trim() || "",
                     value: room.textValue,
                     displayType: 'textarea',
                     type: 'string',
